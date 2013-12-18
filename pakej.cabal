@@ -18,7 +18,6 @@ library
   build-depends:
       base == 4.*
     , bytestring
-    , command-qq
     , containers
     , directory
     , filepath
