@@ -1,0 +1,2 @@
+let g:hdevtools_options = '-g -isrc -g -itest -g -Wall -g -DTEST -g -fno-warn-unused-do-bind -g -fno-warn-type-defaults -g -fdefer-type-errors'
+

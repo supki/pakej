@@ -1,0 +1,48 @@
+name:                pakej
+version:             0.1.0.0
+synopsis:            Status bar daemon
+-- description:         
+homepage:            http://example.com/
+license:             BSD3
+license-file:        LICENSE
+author:              Matvey Aksenov
+maintainer:          matvey.aksenov@gmail.com
+category:            System
+build-type:          Simple
+cabal-version:       >= 1.10
+extra-source-files:
+  example/Main.hs
+
+library
+  default-language:  Haskell2010
+  build-depends:
+      base == 4.*
+    , bytestring
+    , command-qq
+    , containers
+    , directory
+    , filepath
+    , network
+    , optparse-applicative
+    , text
+    , unix
+  hs-source-dirs:    src
+  exposed-modules:
+    Pakej
+    Pakej.Action
+    Pakej.Client
+    Pakej.Conf
+    Pakej.Daemon
+    Pakej.Daemon.Daemonize
+
+executable pakej
+  default-language:  Haskell2010
+  build-depends:
+      base == 4.*
+    , bytestring
+    , directory
+    , filepath
+    , optparse-applicative
+    , unix
+  hs-source-dirs:    bin
+  main-is:           Main.hs
