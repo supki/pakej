@@ -3,34 +3,35 @@ module Pakej.Daemon.Daemonize (daemonize) where
 
 import Control.Applicative
 import Control.Monad
-import System.Posix
-import System.Directory (getAppUserDataDirectory, removeFile)
-import System.Exit (exitSuccess)
+import System.Directory (getAppUserDataDirectory)
+import System.Exit (exitFailure, exitSuccess)
 import System.FilePath ((</>))
+import System.IO (hPutStrLn, stderr)
 import System.IO.Error (tryIOError)
+import System.Posix hiding (Ignore)
 import Text.Read (readMaybe)
+import Text.Printf (printf)
+
+import Pakej.Conf (Previous(..))
 
 
 -- | Forks, prepares child process to serve as a daemon, then exits
 -- with @EXIT_SUCCESS@
-daemonize :: (String -> IO a) -> IO b
-daemonize ioa = do
-  forkProcess (void (prepareChild >>= ioa))
+daemonize :: Previous -> IO a -> IO b
+daemonize prev ioa = do
+  forkProcess (void (prepareChild prev *> ioa))
   exitSuccess
 
 -- | Change the working directory to @\/@, set the fmask to @027@,
 -- close @stdin@, @stdout@, and @stderr@, create Unix socket file
-prepareChild :: IO String
-prepareChild = do
+prepareChild :: Previous -> IO ()
+prepareChild prev = do
   changeWorkingDirectory "/"
   pidfile <- appDirectory "pakej" "pakej.pid"
-  killPakej pidfile
+  killPakej pidfile prev
   savePakej pidfile
   setFileCreationMask 0o027
   close [stdInput, stdOutput, stdError]
-  socket <- appDirectory "pakej" "pakej.sock"
-  tryIOError $ removeFile socket
-  return socket
 
 -- | Closes fds
 close :: [Fd] -> IO ()
@@ -43,11 +44,16 @@ close fds = do
     dupTo fd' fd
 
 -- | Kill running @pakej@ process if exists
-killPakej :: FilePath -> IO (Either IOError Int)
-killPakej pidfile = tryIOError $ do
+killPakej :: FilePath -> Previous -> IO (Either IOError ())
+killPakej pidfile prev = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
-  signalProcess sigTERM pid
-  return (fromIntegral pid)
+  signalProcess nullSignal pid
+  case prev of
+    Supersede -> signalProcess sigTERM pid
+    Submit    -> do
+      hPutStrLn stderr (printf "Can't proceed, found running instance: %s" (show pid))
+      exitFailure
+    Ignore    -> return ()
 
 -- | Save current @pakej@ process pid
 savePakej :: FilePath -> IO ()

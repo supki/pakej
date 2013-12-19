@@ -2,40 +2,78 @@
 {-# LANGUAGE TemplateHaskell #-}
 -- | Pakej configuration
 module Pakej.Conf
-  ( Conf(..)
+  ( Conf(..), Mode(..), Previous(..)
   , conf
+  , addr, mode, prev, host
+  , _Daemon, _Client, _Supersede, _Ignore, _Submit
 #ifdef TEST
-  , _Daemon, _Client
   , parser
 #endif
   ) where
 
-import Control.Lens (makePrisms)
+import Control.Lens (makeLenses, makePrisms)
 import Data.Foldable (asum, foldMap)
 import Data.Monoid (Monoid(..))
 import Options.Applicative
+import Network (PortID(..), HostName)
+import System.Directory (getAppUserDataDirectory)
+import System.FilePath ((</>))
 
 
-data Conf =
+data Conf = Conf
+  { _host :: HostName
+  , _addr :: PortID
+  , _mode :: Mode
+  , _prev :: Previous
+  } deriving (Show, Eq)
+
+data Mode =
     Daemon
   | Client
     { action :: String }
     deriving (Show, Eq)
 
-makePrisms ''Conf
+data Previous =
+    Supersede
+  | Ignore
+  | Submit
+    deriving (Show, Eq)
+
+makeLenses ''Conf
+makePrisms ''Mode
+makePrisms ''Previous
 
 conf :: [String] -> IO Conf
-conf = customExecParser (prefs showHelpOnError) . parser
+conf opts = do
+  sock <- appDirectory "pakej" "pakej.sock"
+  customExecParser (prefs showHelpOnError) (parser sock opts)
 
-parser :: [String] -> ParserInfo Conf
-parser opts = info (helper <*> go) fullDesc
+parser :: FilePath -> [String] -> ParserInfo Conf
+parser sock opts = info (helper <*> go) fullDesc
  where
-  go = asum
-    [ subparser $
-        foldMap clientOption opts
-    , pure Daemon
-    ]
+  go = Conf
+    <$> strOption (long "hostname" <> value "localhost" <> help "hostname to connect")
+    <*> asum
+      [ PortNumber . fromInteger <$> option (long "port" <> help "use network port")
+      , UnixSocket <$> strOption (long "unix" <> value sock <> help "use UNIX domain socket")
+      ]
+    <*> asum
+      [ subparser (foldMap clientOption opts)
+      , pure Daemon
+      ]
+    <*> asum
+      [ flag' Supersede (long "supersede" <> help "supersede running pakej")
+      , flag' Ignore    (long "ignore"    <> help "ignore running pakej")
+      , flag' Submit    (long "submit"    <> help "submit to running pakej (default)")
+      , pure Submit
+      ]
 
-clientOption :: String -> Mod CommandFields Conf
+clientOption :: String -> Mod CommandFields Mode
 clientOption opt =
   command opt (info (pure (Client opt)) mempty)
+
+-- | @\~\/.pakej\/%s@
+appDirectory :: String -> FilePath -> IO FilePath
+appDirectory app filename = do
+  dir <- getAppUserDataDirectory app
+  return (dir </> filename)

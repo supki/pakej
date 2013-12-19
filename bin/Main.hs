@@ -1,8 +1,7 @@
 module Main (main) where
 
-import Data.Monoid (mempty)
-import Options.Applicative
 import System.Directory (getAppUserDataDirectory)
+import System.Environment (getArgs)
 import System.FilePath ((</>))
 import System.Info (arch, os)
 import System.Posix.Process (executeFile)
@@ -11,26 +10,15 @@ import Text.Printf (printf)
 
 main :: IO ()
 main = do
-  c <- conf
-  p <- program
-  case c of
-    Recompile -> do
+  as <- getArgs
+  p  <- program
+  case as of
+    ["--recompile"] -> do
       s <- source
       executeFile "ghc" True [s, "-o", p, "-O", "-threaded"] Nothing
-    Pass as   ->
+    _ ->
       executeFile p False as Nothing
 
-
-data Conf =
-    Recompile
-  | Pass [String]
-
-conf :: IO Conf
-conf = customExecParser (prefs showHelpOnError) (info (helper <*> parser) fullDesc)
- where
-  parser =
-        flag' Recompile (long "recompile")
-    <|> Pass <$> many (argument Just mempty)
 
 
 -- | ~/.pakej/pakej-x86_64-linux

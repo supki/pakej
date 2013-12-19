@@ -1,5 +1,4 @@
 {-# LANGUAGE NamedFieldPuns #-}
--- {-# LANGUAGE OverloadedStrings #-}
 module Pakej.Daemon (daemon) where
 
 import           Control.Applicative
@@ -18,22 +17,24 @@ import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.Encoding as Text
 import           Network
 import           Prelude hiding (fail)
+import           System.Directory (removeFile)
 import           System.IO (hGetLine, hClose)
-import           System.IO.Error (catchIOError)
+import           System.IO.Error (catchIOError, tryIOError)
 import           Text.Printf (printf)
 
 import           Pakej.Action
+import           Pakej.Conf (Previous)
 import           Pakej.Daemon.Daemonize (daemonize)
 
 {-# ANN module "HLint: Avoid lambda" #-}
 
 
-daemon :: [Pakejee Text] -> IO b
-daemon ps =
-  daemonize $ \sock -> do
+daemon :: PortID -> Previous -> [Pakejee Text] -> IO b
+daemon p t ps =
+  daemonize t $ do
     refs <- makeRefs ps
     forM_ ps (installHook refs)
-    bracket (listenOn (UnixSocket sock)) sClose $ \s -> do
+    bracket (preparePort p >> listenOn p) sClose $ \s -> do
       forever $
         bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
         k <- hGetLine h
@@ -48,6 +49,10 @@ daemon ps =
        `catchIOError` \e -> do
         threadDelay 100000
         print e
+
+preparePort :: PortID -> IO (Either IOError ())
+preparePort (UnixSocket s) = tryIOError (removeFile s)
+preparePort _              = return (Right ())
 
 
 data Pakejer a = Fail a | Success a

@@ -42,7 +42,6 @@ executable pakej
     , bytestring
     , directory
     , filepath
-    , optparse-applicative
     , unix
   hs-source-dirs:    bin
   main-is:           Main.hs
@@ -52,9 +51,12 @@ test-suite spec
   default-language:  Haskell2010
   build-depends:
       base == 4.*
+    , directory
+    , filepath
     , hspec
     , hspec-expectations-lens
     , lens
+    , network
     , optparse-applicative
   hs-source-dirs:
     src

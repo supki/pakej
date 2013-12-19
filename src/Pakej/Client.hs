@@ -9,10 +9,9 @@ import           System.FilePath ((</>))
 import           System.IO (hPutStrLn, hClose)
 
 
-client :: String -> IO ()
-client o = do
-  s <- appDirectory "pakej" "pakej.sock"
-  h <- connectTo "localhost" (UnixSocket s)
+client :: HostName -> PortID -> String -> IO ()
+client n p o = do
+  h <- connectTo n p
   hPutStrLn h o
   i <- ByteString.hGetLine h
   hClose h
