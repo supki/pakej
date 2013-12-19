@@ -1,5 +1,16 @@
-module Pakej.Conf (Conf(..), conf) where
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
+-- | Pakej configuration
+module Pakej.Conf
+  ( Conf(..)
+  , conf
+#ifdef TEST
+  , _Daemon, _Client
+  , parser
+#endif
+  ) where
 
+import Control.Lens (makePrisms)
 import Data.Foldable (asum, foldMap)
 import Data.Monoid (Monoid(..))
 import Options.Applicative
@@ -9,11 +20,17 @@ data Conf =
     Daemon
   | Client
     { action :: String }
+    deriving (Show, Eq)
+
+makePrisms ''Conf
 
 conf :: [String] -> IO Conf
-conf opts = customExecParser (prefs showHelpOnError) (info (helper <*> parser) fullDesc)
+conf = customExecParser (prefs showHelpOnError) . parser
+
+parser :: [String] -> ParserInfo Conf
+parser opts = info (helper <*> go) fullDesc
  where
-  parser = asum
+  go = asum
     [ subparser $
         foldMap clientOption opts
     , pure Daemon

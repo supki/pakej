@@ -21,6 +21,7 @@ library
     , containers
     , directory
     , filepath
+    , lens
     , network
     , optparse-applicative
     , text
@@ -45,3 +46,18 @@ executable pakej
     , unix
   hs-source-dirs:    bin
   main-is:           Main.hs
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  default-language:  Haskell2010
+  build-depends:
+      base == 4.*
+    , hspec
+    , hspec-expectations-lens
+    , lens
+    , optparse-applicative
+  hs-source-dirs:
+    src
+    test
+  main-is:           Spec.hs
+  cpp-options:       -DTEST
