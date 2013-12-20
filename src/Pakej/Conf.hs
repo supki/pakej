@@ -4,7 +4,7 @@
 module Pakej.Conf
   ( Conf(..), Mode(..), Previous(..)
   , conf
-  , addr, mode, prev, host
+  , addrs, mode, prev, host
   , _Daemon, _Client, _Supersede, _Ignore, _Submit
 #ifdef TEST
   , parser
@@ -21,10 +21,10 @@ import System.FilePath ((</>))
 
 
 data Conf = Conf
-  { _host :: HostName
-  , _addr :: PortID
-  , _mode :: Mode
-  , _prev :: Previous
+  { _host  :: HostName
+  , _addrs :: [PortID]
+  , _mode  :: Mode
+  , _prev  :: Previous
   } deriving (Show, Eq)
 
 data Mode =
@@ -54,8 +54,11 @@ parser sock opts = info (helper <*> go) fullDesc
   go = Conf
     <$> strOption (long "hostname" <> value "localhost" <> help "hostname to connect")
     <*> asum
-      [ PortNumber . fromInteger <$> option (long "port" <> help "use network port")
-      , UnixSocket <$> strOption (long "unix" <> value sock <> help "use UNIX domain socket")
+      [ some $ asum
+        [ PortNumber . fromInteger <$> option (long "port" <> help "use network port")
+        , UnixSocket <$> strOption (long "unix" <> help "use UNIX domain socket")
+        ]
+      , pure [UnixSocket sock]
       ]
     <*> asum
       [ subparser (foldMap clientOption opts)
@@ -63,7 +66,6 @@ parser sock opts = info (helper <*> go) fullDesc
       ]
     <*> asum
       [ flag' Supersede (long "supersede" <> help "supersede running pakej")
-      , flag' Ignore    (long "ignore"    <> help "ignore running pakej")
       , flag' Submit    (long "submit"    <> help "submit to running pakej (default)")
       , pure Submit
       ]

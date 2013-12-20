@@ -31,17 +31,25 @@ spec = do
         `shouldHave` _Left
 
   context "addr" $ do
-    prop "uses unix socket if no command arguments are provided" $ \xs ->
-      parse (parser "pakej.sock" xs) []
-        `shouldPreview` UnixSocket "pakej.sock" `through` _Right.addr
+    it "uses unix socket if no command arguments are provided" $
+      parse (parser "pakej.sock" []) []
+        `shouldList` [UnixSocket "pakej.sock"]
+        `through` _Right.addrs.folded
 
-    prop "uses unix socket if --unix argument is provided" $ \xs ->
-      parse (parser "pakej.sock" xs) ["--unix", "nepakej.sock"]
-        `shouldPreview` UnixSocket "nepakej.sock" `through` _Right.addr
+    it "uses unix socket if --unix argument is provided" $
+      parse (parser "pakej.sock" []) ["--unix", "nepakej.sock"]
+        `shouldList` [UnixSocket "nepakej.sock"]
+        `through` _Right.addrs.folded
 
-    prop "uses port number if --port argument is provided" $ \xs ->
-      parse (parser "pakej.sock" xs) ["--port", "1234"]
-        `shouldPreview` PortNumber 1234 `through` _Right.addr
+    it "uses port number if --port argument is provided" $
+      parse (parser "pakej.sock" []) ["--port", "1234"]
+        `shouldList` [PortNumber 1234]
+        `through` _Right.addrs.folded
+
+    it "supports multiple socket arguments" $
+      parse (parser "pakej.sock" []) ["--port", "1234", "--unix", "nepackej.sock", "--port", "5678"]
+        `shouldList` [PortNumber 1234, UnixSocket "nepackej.sock", PortNumber 5678]
+        `through` _Right.addrs.folded
 
   context "term" $ do
     it "submits to running pakej if no arguments are provided" $
@@ -51,10 +59,6 @@ spec = do
     it "supersedes running pakej if --supersede argument is provided" $
       parse (parser "pakej.sock" []) ["--supersede"]
         `shouldPreview` Supersede `through` _Right.prev
-
-    it "ignores running pakej if --ignore argument is provided" $
-      parse (parser "pakej.sock" []) ["--ignore"]
-        `shouldPreview` Ignore `through` _Right.prev
 
     it "submits to running pakej if --submit argument is provided" $
       parse (parser "pakej.sock" []) ["--submit"]

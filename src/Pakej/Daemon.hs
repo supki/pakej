@@ -10,8 +10,7 @@ import           Data.IORef
 import qualified Data.Map as Map
 import           Data.Maybe (mapMaybe)
 import           Data.Map (Map)
-import           Data.Monoid (Monoid(..), (<>))
-import           Data.String (IsString(..))
+import           Data.Monoid (Monoid(..))
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.Encoding as Text
@@ -29,39 +28,48 @@ import           Pakej.Daemon.Daemonize (daemonize)
 {-# ANN module "HLint: Avoid lambda" #-}
 
 
-daemon :: PortID -> Previous -> [Pakejee Text] -> IO b
-daemon p t ps =
+daemon :: [PortID] -> Previous -> [Pakejee Text] -> IO b
+daemon ps t pjs =
   daemonize t $ do
-    refs <- makeRefs ps
-    forM_ ps (installHook refs)
-    bracket (preparePort p >> listenOn p) sClose $ \s -> do
-      forever $
-        bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
-        k <- hGetLine h
-        case Map.lookup k refs of
-          Just ref -> do
-            u <- readIORef ref
-            case u of
-              Success v -> ByteString.hPut h (Text.encodeUtf8 v)
-              Fail    v -> ByteString.hPut h (Text.encodeUtf8 v)
-          Nothing  -> ByteString.hPut h
-            (Text.encodeUtf8 $ fromString "Unknown action: " <> Text.pack k <> fromString "\n")
-       `catchIOError` \e -> do
-        threadDelay 100000
-        print e
+    refs <- makeRefs pjs
+    forM_ pjs (installHook refs)
+    forM_ ps  (listen refs)
+    forever $
+      threadDelay 1000000
+
+listen :: (Map String (IORef (Pakejer Text))) -> PortID -> IO a
+listen refs p =
+  bracket (preparePort p >> listenOn p) sClose $ \s -> do
+    forever $
+      bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
+      k <- hGetLine h
+      case Map.lookup k refs of
+        Just ref -> do
+          Pakejer a r <- readIORef ref
+          case (a, p) of
+            (Private, PortNumber _) -> hClose h
+            (_, _) -> ByteString.hPut h (Text.encodeUtf8 (unResult r))
+        Nothing -> hClose h
+     `catchIOError` \e -> do
+      threadDelay 100000
+      print e
 
 preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)
 preparePort _              = return (Right ())
 
+data Pakejer a = Pakejer
+  { _access :: Access
+  , _result :: Result a
+  } deriving (Show, Eq)
 
-data Pakejer a = Fail a | Success a
-  deriving (Show, Eq, Ord)
+data Result a = Fail { unResult :: a } | Success { unResult :: a }
+  deriving (Show, Eq)
 
 makeRefs :: Monoid r => [Pakejee r] -> IO (Map String (IORef (Pakejer r)))
 makeRefs ps = do
   xs <- forM ps $ \p -> do
-    ref <- newIORef (Fail mempty)
+    ref <- newIORef (Pakejer (access p) (Fail mempty))
     return (name p, ref)
   return (Map.fromList xs)
 
@@ -83,8 +91,8 @@ tryIO
 tryIO _ ref (IO ior t) = do
   r <- Text.strip <$> ior
   if Text.null r
-    then atomicModifyIORef' ref (\x -> (fail x, ()))
-    else atomicWriteIORef ref (Success r)
+    then atomicModifyIORef'_ ref (\p -> p { _result = Fail (unResult (_result p)) })
+    else atomicModifyIORef'_ ref (\p -> p { _result = Success r })
   threadDelay t
   return (Right r)
  `catchIOError`
@@ -95,16 +103,15 @@ tryIO refs ref (Group ns sep) = do
   let refs' = mapMaybe (\n -> Map.lookup n refs) ns
   xs <- mapM readIORef refs'
   let r = Text.intercalate sep (mapMaybe succeeded xs)
-  atomicWriteIORef ref (Success r)
+  atomicModifyIORef'_ ref (\p -> p { _result = Success r })
   threadDelay defaultTimeout
   return (Right r)
  `catchIOError`
   \x -> return (Left x)
 
-fail :: Pakejer a -> Pakejer a
-fail (Success x) = Fail x
-fail p           = p
+atomicModifyIORef'_ :: IORef a -> (a -> a) -> IO ()
+atomicModifyIORef'_ ref f = atomicModifyIORef' ref (\p -> (f p , ()))
 
 succeeded :: Pakejer a -> Maybe a
-succeeded (Success x) = Just x
-succeeded _           = Nothing
+succeeded (Pakejer _ (Success x)) = Just x
+succeeded _                       = Nothing
