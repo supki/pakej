@@ -69,6 +69,7 @@ parser sock opts = info (helper <*> go) fullDesc
       , flag' Submit  (long "submit"  <> help "submit to running pakej (default)")
       , pure Submit
       ]
+    <* optional (switch (long "recompile" <> help "recompile pakej executable"))
 
   port = fmap (PortNumber . fromInteger). option
   unix = fmap UnixSocket . strOption
