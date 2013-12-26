@@ -5,23 +5,23 @@ import           Control.Applicative
 import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (IOException, bracket)
 import           Control.Monad (forM, forM_, forever, void)
-import qualified Data.ByteString.Lazy as ByteString
 import           Data.IORef
 import qualified Data.Map as Map
 import           Data.Maybe (mapMaybe)
 import           Data.Map (Map)
 import           Data.Monoid (Monoid(..))
+import qualified Data.Text
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
-import qualified Data.Text.Lazy.Encoding as Text
 import           Network
 import           Prelude hiding (fail)
 import           System.Directory (removeFile)
-import           System.IO (hGetLine, hClose)
+import           System.IO (hClose)
 import           System.IO.Error (catchIOError, tryIOError)
 import           Text.Printf (printf)
 
 import           Pakej.Action
+import           Pakej.Communication
 import           Pakej.Conf (Previous)
 import           Pakej.Daemon.Daemonize (daemonize)
 
@@ -42,14 +42,18 @@ listen refs p = forkIO $
   bracket (preparePort p >> listenOn p) sClose $ \s -> do
     forever $
       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
-      k <- hGetLine h
-      case Map.lookup k refs of
-        Just ref -> do
-          Pakejer a r <- readIORef ref
-          case (a, p) of
-            (Private, PortNumber _) -> hClose h
-            (_, _) -> ByteString.hPut h (Text.encodeUtf8 (unResult r))
-        Nothing -> hClose h
+      k <- recv h
+      case k of
+        Right (CQuery query) ->
+          case Map.lookup (Data.Text.unpack query) refs of
+          Just ref -> do
+            Pakejer a r <- readIORef ref
+            case (a, p) of
+              (Private, PortNumber _) -> hClose h
+              (_, _) -> send h (DResponse (Text.toStrict (unResult r)))
+          Nothing -> hClose h
+        Left _ ->
+          hClose h
      `catchIOError` \e -> do
       threadDelay 100000
       print e

@@ -1,27 +1,29 @@
 module Pakej.Client where
 
-import qualified Data.ByteString as ByteString
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text
-import qualified Data.Text.Encoding as Text
 import           Network
 import           System.Directory (getAppUserDataDirectory)
 import           System.Exit (exitFailure)
 import           System.FilePath ((</>))
-import           System.IO (hPutStrLn, hClose)
 import           System.Timeout (timeout)
 
+import           Pakej.Communication
 
-client :: HostName -> PortID -> String -> IO ()
-client n p o = do
+
+client :: HostName -> PortID -> Text -> IO ()
+client n p query = do
   res <- timeout (5 * second) $ do
     h <- connectTo n p
-    hPutStrLn h o
-    i <- ByteString.hGetLine h
-    hClose h
-    return (Text.decodeUtf8 i)
+    send h (CQuery query)
+    recv h
   case res of
-    Nothing -> exitFailure
-    Just m  -> Text.putStrLn m
+    Nothing ->
+      exitFailure
+    Just (Left _) ->
+      exitFailure
+    Just (Right (DResponse response)) ->
+      Text.putStrLn response
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath

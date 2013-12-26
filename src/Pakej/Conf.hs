@@ -11,13 +11,15 @@ module Pakej.Conf
 #endif
   ) where
 
-import Control.Lens (makeLenses, makePrisms)
-import Data.Foldable (asum, foldMap)
-import Data.Monoid (Monoid(..))
-import Options.Applicative
-import Network (PortID(..), HostName)
-import System.Directory (getAppUserDataDirectory)
-import System.FilePath ((</>))
+import           Control.Lens (makeLenses, makePrisms)
+import           Data.Foldable (asum, foldMap)
+import           Data.Monoid (Monoid(..))
+import           Data.Text (Text)
+import qualified Data.Text as Text
+import           Options.Applicative
+import           Network (PortID(..), HostName)
+import           System.Directory (getAppUserDataDirectory)
+import           System.FilePath ((</>))
 
 
 data Conf = Conf
@@ -30,7 +32,7 @@ data Conf = Conf
 data Mode =
     Daemon
   | Client
-    { action :: String }
+    { action :: Text }
     deriving (Show, Eq)
 
 data Previous =
@@ -76,7 +78,7 @@ parser sock opts = info (helper <*> go) fullDesc
 
 clientOption :: String -> Mod CommandFields Mode
 clientOption opt =
-  command opt (info (pure (Client opt)) mempty)
+  command opt (info (pure (Client (Text.pack opt))) mempty)
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath
