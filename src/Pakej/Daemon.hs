@@ -2,7 +2,7 @@
 module Pakej.Daemon (daemon) where
 
 import           Control.Applicative
-import           Control.Concurrent (forkIO, threadDelay)
+import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (IOException, bracket)
 import           Control.Monad (forM, forM_, forever, void)
 import qualified Data.ByteString.Lazy as ByteString
@@ -37,8 +37,8 @@ daemon ps t pjs =
     forever $
       threadDelay 1000000
 
-listen :: (Map String (IORef (Pakejer Text))) -> PortID -> IO a
-listen refs p =
+listen :: (Map String (IORef (Pakejer Text))) -> PortID -> IO ThreadId
+listen refs p = forkIO $
   bracket (preparePort p >> listenOn p) sClose $ \s -> do
     forever $
       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
