@@ -5,7 +5,7 @@ module Pakej.Conf
   ( Conf(..), Mode(..), Previous(..)
   , conf
   , addrs, mode, prev, host
-  , _Daemon, _Client, _Supersede, _Ignore, _Submit
+  , _Daemon, _Client, _Replace, _Ignore, _Submit
 #ifdef TEST
   , parser
 #endif
@@ -34,7 +34,7 @@ data Mode =
     deriving (Show, Eq)
 
 data Previous =
-    Supersede
+    Replace
   | Ignore
   | Submit
     deriving (Show, Eq)
@@ -55,8 +55,8 @@ parser sock opts = info (helper <*> go) fullDesc
     <$> strOption (long "hostname" <> value "localhost" <> help "hostname to connect")
     <*> asum
       [ some $ asum
-        [ PortNumber . fromInteger <$> option (long "port" <> help "use network port")
-        , UnixSocket <$> strOption (long "unix" <> help "use UNIX domain socket")
+        [ port (long "port" <> help "use network port")
+        , unix (long "unix" <> help "use UNIX domain socket")
         ]
       , pure [UnixSocket sock]
       ]
@@ -65,10 +65,13 @@ parser sock opts = info (helper <*> go) fullDesc
       , pure Daemon
       ]
     <*> asum
-      [ flag' Supersede (long "supersede" <> help "supersede running pakej")
-      , flag' Submit    (long "submit"    <> help "submit to running pakej (default)")
+      [ flag' Replace (long "replace" <> help "replace running pakej (if any)")
+      , flag' Submit  (long "submit"  <> help "submit to running pakej (default)")
       , pure Submit
       ]
+
+  port = fmap (PortNumber . fromInteger). option
+  unix = fmap UnixSocket . strOption
 
 clientOption :: String -> Mod CommandFields Mode
 clientOption opt =

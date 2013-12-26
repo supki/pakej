@@ -56,9 +56,9 @@ spec = do
       parse (parser "pakej.sock" []) []
         `shouldPreview` Submit `through` _Right.prev
 
-    it "supersedes running pakej if --supersede argument is provided" $
-      parse (parser "pakej.sock" []) ["--supersede"]
-        `shouldPreview` Supersede `through` _Right.prev
+    it "replaces running pakej if --replace argument is provided" $
+      parse (parser "pakej.sock" []) ["--replace"]
+        `shouldPreview` Replace `through` _Right.prev
 
     it "submits to running pakej if --submit argument is provided" $
       parse (parser "pakej.sock" []) ["--submit"]

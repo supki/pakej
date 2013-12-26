@@ -49,11 +49,11 @@ killPakej pidfile prev = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
   signalProcess nullSignal pid
   case prev of
-    Supersede -> signalProcess sigTERM pid
-    Submit    -> do
+    Replace -> signalProcess sigTERM pid
+    Submit  -> do
       hPutStrLn stderr (printf "Can't proceed, found running instance: %s" (show pid))
       exitFailure
-    Ignore    -> return ()
+    Ignore  -> return ()
 
 -- | Save current @pakej@ process pid
 savePakej :: FilePath -> IO ()
