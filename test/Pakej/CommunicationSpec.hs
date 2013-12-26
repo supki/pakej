@@ -18,6 +18,9 @@ spec = do
       let query = CQuery "ДМИТРИЙ МАЛИКОВ"
       roundtrip query `shouldPreview` query `through` _Right
 
+    it "has working serialization for CStatus" $
+      roundtrip CStatus `shouldPreview` CStatus `through` _Right
+
     it "only uses tag 0" $
       decodeClient (ByteString.pack [0x02, 0x04, 0x07])
         `shouldPreview`
@@ -28,8 +31,12 @@ spec = do
 
   describe "Daemon" $ do
     it "has working serialization for DResponse" $ do
-      let response = DResponse "ДМИТРИЙ МАЛИКОВ"
+      let response = DQuery "ДМИТРИЙ МАЛИКОВ"
       roundtrip response `shouldPreview` response `through` _Right
+
+    it "has working serialization for DStatus" $ do
+      let status = DStatus ["foo", "bar", "baz"]
+      roundtrip status `shouldPreview` status `through` _Right
 
     it "only uses tag 0" $
       decodeDaemon (ByteString.pack [0x02, 0x04, 0x07])

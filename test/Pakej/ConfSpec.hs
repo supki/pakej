@@ -10,6 +10,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.Hspec.Expectations.Lens
 
+import Pakej.Communication
 import Pakej.Conf
 
 
@@ -25,7 +26,11 @@ spec = do
 
     it "converts provided options into commands" $
       parse (parser "pakej.sock" ["foo", "bar", "baz"]) ["bar"]
-        `shouldPreview` "bar" `through` _Right.mode._Client
+        `shouldPreview` CQuery "bar" `through` _Right.mode._Client
+
+    it "converts shto-to command into a status query" $
+      parse (parser "pakej.sock" ["foo", "bar", "baz"]) ["shto-to"]
+        `shouldPreview` CStatus `through` _Right.mode._Client
 
     it "does not have commands outside of options list" $
       parse (parser "pakej.sock" ["foo", "bar", "baz"]) ["xyzzy"]

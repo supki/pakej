@@ -14,12 +14,13 @@ module Pakej.Conf
 import           Control.Lens (makeLenses, makePrisms)
 import           Data.Foldable (asum, foldMap)
 import           Data.Monoid (Monoid(..))
-import           Data.Text (Text)
 import qualified Data.Text as Text
 import           Options.Applicative
 import           Network (PortID(..), HostName)
 import           System.Directory (getAppUserDataDirectory)
 import           System.FilePath ((</>))
+
+import           Pakej.Communication (Client(..))
 
 
 data Conf = Conf
@@ -32,7 +33,7 @@ data Conf = Conf
 data Mode =
     Daemon
   | Client
-    { action :: Text }
+    { action :: Client }
     deriving (Show, Eq)
 
 data Previous =
@@ -63,7 +64,10 @@ parser sock opts = info (helper <*> go) fullDesc
       , pure [UnixSocket sock]
       ]
     <*> asum
-      [ subparser (foldMap clientOption opts)
+      [ subparser
+        (  command "shto-to" (info (pure (Client CStatus)) mempty)
+        <> foldMap clientOption opts
+        )
       , pure Daemon
       ]
     <*> asum
@@ -78,7 +82,7 @@ parser sock opts = info (helper <*> go) fullDesc
 
 clientOption :: String -> Mod CommandFields Mode
 clientOption opt =
-  command opt (info (pure (Client (Text.pack opt))) mempty)
+  command opt (info (pure (Client (CQuery (Text.pack opt)))) mempty)
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath

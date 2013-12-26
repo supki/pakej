@@ -50,8 +50,10 @@ listen refs p = forkIO $
             Pakejer a r <- readIORef ref
             case (a, p) of
               (Private, PortNumber _) -> hClose h
-              (_, _) -> send h (DResponse (Text.toStrict (unResult r)))
+              (_, _) -> send h (DQuery (Text.toStrict (unResult r)))
           Nothing -> hClose h
+        Right CStatus ->
+          send h (DStatus (map Data.Text.pack (Map.keys refs)))
         Left _ ->
           hClose h
      `catchIOError` \e -> do
