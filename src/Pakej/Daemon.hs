@@ -24,7 +24,7 @@ import           Pakej.Communication
 import           Pakej.Conf (Previous)
 import           Pakej.Daemon.Daemonize (daemonize)
 
-{-# ANN module "HLint: Avoid lambda" #-}
+{-# ANN module "HLint: Use camelCase" #-}
 
 
 daemon :: [PortID] -> Previous -> [Pakejee Text] -> IO b
@@ -36,9 +36,9 @@ daemon ps t pjs =
     forever $
       threadDelay 1000000
 
-listen :: (Map String (PakejerRef Text)) -> PortID -> IO ThreadId
+listen :: Map String (PakejerRef Text) -> PortID -> IO ThreadId
 listen refs p = forkIO $
-  bracket (preparePort p >> listenOn p) sClose $ \s -> do
+  bracket (preparePort p >> listenOn p) sClose $ \s ->
     forever $
       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
       k <- recv h
