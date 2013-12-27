@@ -1,9 +1,10 @@
+{-# LANGUAGE DeriveFunctor #-}
 -- | Pakej actions - 'Pakejee's
 module Pakej.Action
   ( -- * Type
     Pakejee, Action(..), Access(..)
     -- ** Getters
-  , name, action, access
+  , name, action
     -- ** Constructors
   , (~>), (|>)
     -- ** Modifiers
@@ -18,17 +19,21 @@ import Data.Text.Lazy (Text)
 infix 1 ~>, |>
 
 
-data Pakejee r = Pakejee
+type Pakejee r = Access (PakejeeI r)
+
+-- | A 'Pakejee' is a named 'Action' with an access policy
+data PakejeeI r = PakejeeI
   { _name   :: String
-  , _access :: Access
   , _action :: Action r
   }
 
-data Access =
-    Private
-  | Public
-    deriving (Show, Eq)
+-- | 'Public' 'Pakejee's are available to network clients
+data Access a =
+    Private { unAccess :: a }
+  | Public  { unAccess :: a }
+    deriving (Show, Eq, Functor)
 
+-- | An 'Action' is either to do some 'IO' or to group other 'Action's
 data Action r =
     IO (IO r) Int
   | Group [String] r
@@ -36,43 +41,45 @@ data Action r =
 
 -- | Get 'Pakejee''s name
 name :: Pakejee a -> String
-name = _name
+name = _name . unAccess
 
 -- | Get 'Pakejee''s action
 action :: Pakejee r -> Action r
-action = _action
-
--- | Get 'Pakejee''s access
-access :: Pakejee a -> Access
-access = _access
+action = _action . unAccess
 
 -- | Construct an I/O 'Pakejee'
 --
 -- Default 'Action' timeout is @1@ second
 (~>) :: String -> IO Text -> Pakejee Text
-n ~> ioa = Pakejee { _name = n, _access = Private, _action = IO ioa defaultTimeout }
+n ~> ioa = Private PakejeeI { _name = n, _action = IO ioa defaultTimeout }
 
 -- | Construct an grouping 'Pakejee'
 (|>) :: String -> [String] -> Pakejee Text
-n |> xs = Pakejee { _name = n, _access = Private, _action = Group xs (fromString " | ") }
+n |> xs = Private PakejeeI { _name = n, _action = Group xs (fromString " | ") }
 
 -- | Override timeout for I/O actions
 delayed :: Int -> Pakejee a -> Pakejee a
-delayed _ x@(Pakejee _ _ Group {}) = x
-delayed t (Pakejee n a (IO ior _)) = Pakejee n a (IO ior t)
+delayed t = fmap go
+ where
+  go x@(PakejeeI _ Group {}) = x
+  go (PakejeeI n (IO ior _)) = PakejeeI n (IO ior t)
 
 -- | Override separator for grouping actions
 separated :: a -> Pakejee a -> Pakejee a
-separated _ x@(Pakejee _ _ IO {})      = x
-separated s (Pakejee n a (Group ns _)) = Pakejee n a (Group ns s)
+separated sep = fmap go
+ where
+  go x@(PakejeeI _ IO {})      = x
+  go (PakejeeI n (Group ns _)) = PakejeeI n (Group ns sep)
 
 -- | Make 'Pakejee' private
 private :: Pakejee a -> Pakejee a
-private ~(Pakejee n _ a) = Pakejee n Private a
+private (Public (PakejeeI n a)) = Private (PakejeeI n a)
+private x                       = x
 
 -- | Make 'Pakejee' public
 public :: Pakejee a -> Pakejee a
-public ~(Pakejee n _ a) = Pakejee n Public a
+public (Private (PakejeeI n a)) = Public (PakejeeI n a)
+public x                       = x
 
 -- | Default 'Pakejee' timeout (@1@ second)
 defaultTimeout :: Int

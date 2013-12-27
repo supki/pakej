@@ -1,4 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
 module Pakej.Daemon (daemon) where
 
 import           Control.Applicative
@@ -37,7 +36,7 @@ daemon ps t pjs =
     forever $
       threadDelay 1000000
 
-listen :: (Map String (IORef (Pakejer Text))) -> PortID -> IO ThreadId
+listen :: (Map String (PakejerRef Text)) -> PortID -> IO ThreadId
 listen refs p = forkIO $
   bracket (preparePort p >> listenOn p) sClose $ \s -> do
     forever $
@@ -46,14 +45,18 @@ listen refs p = forkIO $
       case k of
         Right (CQuery query) ->
           case Map.lookup (Data.Text.unpack query) refs of
-          Just ref -> do
-            Pakejer a r <- readIORef ref
-            case (a, p) of
-              (Private, PortNumber _) -> hClose h
-              (_, _) -> send h (DQuery (Text.toStrict (unResult r)))
+          Just ref ->
+            case (ref, p) of
+              (Private _, PortNumber _) -> hClose h
+              (_, _) -> do
+                r <- readPakejerRef ref
+                send h (DQuery (Text.toStrict (unResult r)))
           Nothing -> hClose h
         Right CStatus ->
-          send h (DStatus (map Data.Text.pack (Map.keys refs)))
+          let
+            disclosed = map fst . filter (isPublic . snd) $ Map.toList refs
+          in
+            send h (DStatus (map Data.Text.pack disclosed))
         Left _ ->
           hClose h
      `catchIOError` \e -> do
@@ -64,22 +67,19 @@ preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)
 preparePort _              = return (Right ())
 
-data Pakejer a = Pakejer
-  { _access :: Access
-  , _result :: Result a
-  } deriving (Show, Eq)
+type PakejerRef r = Access (IORef (Pakejer r))
 
-data Result a = Fail { unResult :: a } | Success { unResult :: a }
+data Pakejer a = Fail { unResult :: a } | Success { unResult :: a }
   deriving (Show, Eq)
 
-makeRefs :: Monoid r => [Pakejee r] -> IO (Map String (IORef (Pakejer r)))
+makeRefs :: Monoid r => [Pakejee r] -> IO (Map String (PakejerRef r))
 makeRefs ps = do
   xs <- forM ps $ \p -> do
-    ref <- newIORef (Pakejer (access p) (Fail mempty))
-    return (name p, ref)
+    ref <- newIORef (Fail mempty)
+    return (name p, ref <$ p)
   return (Map.fromList xs)
 
-installHook :: Map String (IORef (Pakejer Text)) -> Pakejee Text -> IO ()
+installHook :: Map String (PakejerRef Text) -> Pakejee Text -> IO ()
 installHook refs p =
   case Map.lookup (name p) refs of
     Nothing  -> return ()
@@ -90,15 +90,15 @@ installHook refs p =
         Left  e -> printf "%s failed: %s" (name p) (show e)
 
 tryIO
-  :: Map String (IORef (Pakejer Text))
-  -> IORef (Pakejer Text)
+  :: Map String (PakejerRef Text)
+  -> PakejerRef Text
   -> Action Text
   -> IO (Either IOException Text)
 tryIO _ ref (IO ior t) = do
   r <- Text.strip <$> ior
   if Text.null r
-    then atomicModifyIORef'_ ref (\p -> p { _result = Fail (unResult (_result p)) })
-    else atomicModifyIORef'_ ref (\p -> p { _result = Success r })
+    then atomicModifyPakejerRef'_ ref (Fail . unResult)
+    else atomicWritePakejerRef ref (Success r)
   threadDelay t
   return (Right r)
  `catchIOError`
@@ -107,17 +107,27 @@ tryIO _ ref (IO ior t) = do
     return (Left x)
 tryIO refs ref (Group ns sep) = do
   let refs' = mapMaybe (\n -> Map.lookup n refs) ns
-  xs <- mapM readIORef refs'
+  xs <- mapM readPakejerRef refs'
   let r = Text.intercalate sep (mapMaybe succeeded xs)
-  atomicModifyIORef'_ ref (\p -> p { _result = Success r })
+  atomicWritePakejerRef ref (Success r)
   threadDelay defaultTimeout
   return (Right r)
  `catchIOError`
   \x -> return (Left x)
 
-atomicModifyIORef'_ :: IORef a -> (a -> a) -> IO ()
-atomicModifyIORef'_ ref f = atomicModifyIORef' ref (\p -> (f p , ()))
-
 succeeded :: Pakejer a -> Maybe a
-succeeded (Pakejer _ (Success x)) = Just x
-succeeded _                       = Nothing
+succeeded (Success x) = Just x
+succeeded _           = Nothing
+
+readPakejerRef :: PakejerRef a -> IO (Pakejer a)
+readPakejerRef = readIORef . unAccess
+
+atomicWritePakejerRef :: PakejerRef a -> Pakejer a -> IO ()
+atomicWritePakejerRef ref = atomicModifyPakejerRef'_ ref . const
+
+atomicModifyPakejerRef'_ :: PakejerRef a -> (Pakejer a -> Pakejer a) -> IO ()
+atomicModifyPakejerRef'_ ref f = atomicModifyIORef' (unAccess ref) (\p -> (f p , ()))
+
+isPublic :: Access r -> Bool
+isPublic (Public _) = True
+isPublic _          = False
