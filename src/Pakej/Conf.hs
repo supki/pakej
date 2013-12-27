@@ -13,7 +13,7 @@ module Pakej.Conf
 
 import           Control.Lens (makeLenses, makePrisms)
 import           Data.Foldable (asum, foldMap)
-import           Data.Monoid (Monoid(..))
+import           Data.List (sort)
 import qualified Data.Text as Text
 import           Options.Applicative
 import           Network (PortID(..), HostName)
@@ -65,8 +65,8 @@ parser sock opts = info (helper <*> go) fullDesc
       ]
     <*> asum
       [ subparser
-        (  command "shto-to" (info (pure (Client CStatus)) mempty)
-        <> foldMap clientOption opts
+        ( command "shto-to" (info (pure (Client CStatus)) fullDesc)
+       <> foldMap clientOption (sort opts)
         )
       , pure Daemon
       ]
@@ -82,7 +82,7 @@ parser sock opts = info (helper <*> go) fullDesc
 
 clientOption :: String -> Mod CommandFields Mode
 clientOption opt =
-  command opt (info (pure (Client (CQuery (Text.pack opt)))) mempty)
+  command opt (info (pure (Client (CQuery (Text.pack opt)))) fullDesc)
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath
