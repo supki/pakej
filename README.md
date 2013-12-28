@@ -51,8 +51,36 @@ if you're not in the mood of guessing available Pakej commands, just ask it to s
 date
 ```
 
+By default, Pakej daemon communicates with clients through [UNIX domain socket][unix-domain-socket] at
+`~/.pakej/pakej.sock`. You can use `--unix` and `--port` options to override the default:
+
+```
+% pakej --port 1234
+% pakej date --hostname 127.0.0.1 --port 1234
+12.28.13, Sat, 13:56 PM
+```
+
+You can actually run Pakej listening on many different sockets, for instance, `pakej --unix
+~/.pakej/pakej.sock --port 1234 --port 5678` will listen on ports 1234, 5678, and also on the default UNIX
+domain socket
+
+_Note_: Pakej will not allow to start daemon if there is an instance already running:
+
+```
+% pakej
+% pakej
+Can't proceed, found running instance: 13994
+```
+
+To replace the running daemon, use the `--replace` option.
+
+_Note_: If you make changes to `pakej.hs` and recompile Pakej, don't forget to replace currently running
+daemon instance
+
+
   [tmux]: http://tmux.sourceforge.net
   [xmobar]: http://projects.haskell.org/xmobar
   [xmonad]: http://xmonad.org
   [simple-example]: https://github.com/supki/pakej/blob/master/example/Main.hs
   [supki-example]: https://github.com/supki/.dotfiles/blob/master/core/pakej.hs
+  [unix-domain-socket]: http://en.wikipedia.org/wiki/Unix_domain_socket
