@@ -19,9 +19,10 @@ import Data.Text.Lazy (Text)
 infix 1 ~>, |>
 
 
+-- | A 'Pakejee' is a named 'Action' with an access policy
 type Pakejee r = Access (PakejeeI r)
 
--- | A 'Pakejee' is a named 'Action' with an access policy
+-- | A 'PakejeeI' is a named 'Action'
 data PakejeeI r = PakejeeI
   { _name   :: String
   , _action :: Action r
@@ -47,36 +48,45 @@ name = _name . unAccess
 action :: Pakejee r -> Action r
 action = _action . unAccess
 
--- | Construct an I/O 'Pakejee'
+-- | Construct an I/O action that can be queried by the provided name
 --
 -- Default 'Action' timeout is @1@ second
-(~>) :: String -> IO Text -> Pakejee Text
+(~>)
+  :: String  -- ^ name
+  -> IO Text -- ^ I/O action
+  -> Pakejee Text
 n ~> ioa = Private PakejeeI { _name = n, _action = IO ioa defaultTimeout }
 
--- | Construct an grouping 'Pakejee'
-(|>) :: String -> [String] -> Pakejee Text
+-- | Construct a grouping action that can be queries by the provided name
+(|>)
+  :: String   -- ^ name
+  -> [String] -- ^ names of actions to group
+  -> Pakejee Text
 n |> xs = Private PakejeeI { _name = n, _action = Group xs (fromString " | ") }
 
--- | Override timeout for I/O actions
+-- | Override the timeout for I/O action
 delayed :: Int -> Pakejee a -> Pakejee a
 delayed t = fmap go
  where
   go x@(PakejeeI _ Group {}) = x
   go (PakejeeI n (IO ior _)) = PakejeeI n (IO ior t)
 
--- | Override separator for grouping actions
+-- | Override the separator for grouping actions
 separated :: a -> Pakejee a -> Pakejee a
 separated sep = fmap go
  where
   go x@(PakejeeI _ IO {})      = x
   go (PakejeeI n (Group ns _)) = PakejeeI n (Group ns sep)
 
--- | Make 'Pakejee' private
+-- | Private 'Pakejee's are only available locally. This means you can only
+-- query those through UNIX domain sockets
+--
+-- This is the default
 private :: Pakejee a -> Pakejee a
 private (Public (PakejeeI n a)) = Private (PakejeeI n a)
 private x                       = x
 
--- | Make 'Pakejee' public
+-- | Public 'Pakejee's are available remotely
 public :: Pakejee a -> Pakejee a
 public (Private (PakejeeI n a)) = Public (PakejeeI n a)
 public x                       = x

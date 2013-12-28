@@ -5,8 +5,8 @@ Pakej is a status bar daemon. It does not actually draw any status bar,
 but executes arbitrary I/O in the background and shares its results.
 This is most useful together with tools like [tmux][tmux] or [xmobar][xmobar]
 
-Installation
-------------
+Install
+-------
 
 Installation is a fairly involved process (sorry). First, you need to install Pakej library:
 
@@ -33,8 +33,8 @@ and, finally, run it!
 % pakej
 ```
 
-Usage
------
+Use
+---
 
 You can query running `pakej` instance. Here I assume you've used [examples/Main.hs][simple-example] as
 your `pakej.hs`:
@@ -73,6 +73,12 @@ Can't proceed, found running instance: 13994
 ```
 
 To replace the running daemon, use the `--replace` option.
+
+Customize
+---------
+
+You can customize your Pakej instance by changing `~/.pakej/pakej.hs` file, which is the base for both
+daemon and client.
 
 _Note_: If you make changes to `pakej.hs` and recompile Pakej, don't forget to replace currently running
 daemon instance
