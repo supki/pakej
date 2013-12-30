@@ -2,8 +2,8 @@ Pakej
 =====
 
 Pakej is a status bar daemon. It does not actually draw any status bar,
-but executes arbitrary I/O in the background and shares its results.
-This is most useful together with tools like [tmux][tmux] or [xmobar][xmobar]
+only executes I/O actions in the background and stores their results.
+This is most useful together with tools like [tmux][tmux] or [xmobar][xmobar].
 
 Install
 -------
@@ -16,7 +16,7 @@ Installation is a fairly involved process (sorry). First, you need to install Pa
 % cabal install
 ```
 
-Next, you'll need to create `~/.pakej` directory and place `pakej.hs` file inside. For an example
+Next, you need to create `~/.pakej` directory and place `pakej.hs` file there. For an example
 of `pakej.hs` see [examples/Main.hs][simple-example] (very simple) or [my pakej.hs][supki-example]
 (it's more complicated but shows more features)
 
@@ -77,8 +77,86 @@ To replace the running daemon, use the `--replace` option.
 Customize
 ---------
 
-You can customize your Pakej instance by changing `~/.pakej/pakej.hs` file, which is the base for both
-daemon and client.
+You customize your Pakej instance by writing your own `~/.pakej/pakej.hs` file
+which is the base for both daemon and client. Pakej package provides `pakej` function as the
+default `main`, so, typical `pakej.hs` will start with:
+
+```haskell
+import Pakej
+
+main :: IO ()
+main = pakej ...
+```
+
+where in place of `...` you write Pakej actions you want to execute and query afterwards
+
+### Pakej actions
+
+There are two kinds of Pakej actions: I/O actions and grouping actions. Let's start with I/O actions.
+
+#### I/O actions
+
+You can construct I/O action using `io` function or its infix alias `~>`. Next example uses
+[command-qq][command-qq] package for brevity:
+
+```haskell
+import Pakej
+import System.Command.QQ (sh)
+
+main :: IO ()
+main = pakej [ io "date" [sh| date +"%m.%d.%y, %a, %H:%M %p" |] ]
+```
+
+```
+% pakej --recompile
+...
+% pakej --replace
+% pakej date
+12.30.13, Mon, 20:37 PM
+```
+
+What happened? You constructed a Pakej instance with only one action (called "date"),
+which is run every second and result is stored. You can query its result every moment!
+
+#### Grouping actions
+
+Let's suppose you have:
+
+```haskell
+import Pakej
+
+main :: IO ()
+main = pakej
+  [ io "cpu" {- some script figuring out cpu's business -}
+  , io "mem" {- some script figuring out memory's freeness -}
+  ]
+```
+
+It would be nice to show results of both actions in a status bar  without calling Pakej twice, right?
+Grouping actions provide exactly this:
+
+```haskell
+import Pakej
+
+main :: IO ()
+main = pakej
+  [ io "cpu" {- some script figuring out cpu's business -}
+  , io "mem" {- some script figuring out memory's freeness -}
+  , group "grouped" ["cpu", "mem"]
+  ]
+```
+
+```
+% pakej --recompile
+...
+% pakej --replace
+% pakej grouped
+9% | 65%
+```
+
+### More
+
+[Haddocks][pakej-haddocks] cover the entire Pakej API.
 
 _Note_: If you make changes to `pakej.hs` and recompile Pakej, don't forget to replace currently running
 daemon instance
@@ -90,3 +168,5 @@ daemon instance
   [simple-example]: https://github.com/supki/pakej/blob/master/example/Main.hs
   [supki-example]: https://github.com/supki/.dotfiles/blob/master/core/pakej.hs
   [unix-domain-socket]: http://en.wikipedia.org/wiki/Unix_domain_socket
+  [command-qq]: http://hackage.haskell.org/package/command-qq
+  [pakej-haddocks]: http://supki.github.io/pakej/Pakej.html
