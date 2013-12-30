@@ -1,7 +1,17 @@
 -- | Pakej - status bar daemon
 module Pakej
-  ( pakej
-  , Pakejee, (~>), (|>), delayed, separated, private, public, defaultTimeout
+  ( -- * Main function
+    pakej
+    -- * Actions
+  , io, group
+    -- * Types
+  , Pakejee, PakejeeI, Action, Access
+    -- ** Modifiers
+  , delayed, separated, private, public
+    -- ** Aliases
+  , (~>), (|>)
+    -- ** Misc
+  , defaultTimeout
   ) where
 
 import Control.Lens ((^?!), view, folded)
@@ -13,7 +23,7 @@ import Pakej.Conf
 import Pakej.Daemon
 
 
--- | Run Pakej with the provided options
+-- | Run Pakej with the provided 'Action's
 pakej :: [Pakejee Text] -> IO ()
 pakej os = do
   c <- conf (map name os)

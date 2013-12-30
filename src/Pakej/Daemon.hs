@@ -120,13 +120,13 @@ succeeded (Success x) = Just x
 succeeded _           = Nothing
 
 readPakejerRef :: PakejerRef a -> IO (Pakejer a)
-readPakejerRef = readIORef . unAccess
+readPakejerRef = readIORef . access
 
 atomicWritePakejerRef :: PakejerRef a -> Pakejer a -> IO ()
 atomicWritePakejerRef ref = atomicModifyPakejerRef'_ ref . const
 
 atomicModifyPakejerRef'_ :: PakejerRef a -> (Pakejer a -> Pakejer a) -> IO ()
-atomicModifyPakejerRef'_ ref f = atomicModifyIORef' (unAccess ref) (\p -> (f p , ()))
+atomicModifyPakejerRef'_ ref f = atomicModifyIORef' (access ref) (\p -> (f p , ()))
 
 isPublic :: Access r -> Bool
 isPublic (Public _) = True
