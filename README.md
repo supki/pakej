@@ -1,5 +1,6 @@
 Pakej
 =====
+[![Build Status](https://secure.travis-ci.org/supki/pakej.png?branch=master)](http://travis-ci.org/supki/pakej)
 
 Pakej is a status bar daemon. It does not actually draw any status bar,
 only executes I/O actions in the background and stores their results.

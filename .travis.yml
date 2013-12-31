@@ -1,0 +1,10 @@
+language: haskell
+
+before_install:
+    - cabal install command-qq
+    - git clone https://github.com/supki/.dotfiles
+
+script:
+    - cabal install --enable-tests
+    - ghc -O example/Main.hs
+    - ghc -O .dotfiles/core/pakej.hs
