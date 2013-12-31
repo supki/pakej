@@ -8,5 +8,5 @@ import Pakej
 
 main :: IO ()
 main = pakej
-  [ "date" ~> [sh| date +"%m.%d.%y, %a, %H:%M %p" |]
+  [ run $ "date" ~> [sh| date +"%m.%d.%y, %a, %H:%M %p" |]
   ]

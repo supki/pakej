@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Pakej.Daemon (daemon) where
 
 import           Control.Applicative
@@ -27,7 +28,7 @@ import           Pakej.Daemon.Daemonize (daemonize)
 {-# ANN module "HLint: Use camelCase" #-}
 
 
-daemon :: [PortID] -> Previous -> [Pakejee Text] -> IO b
+daemon :: [PortID] -> Previous -> [Pakej Text] -> IO b
 daemon ps t pjs =
   daemonize t $ do
     refs <- makeRefs pjs
@@ -72,15 +73,15 @@ type PakejerRef r = Access (IORef (Pakejer r))
 data Pakejer a = Fail { unResult :: a } | Success { unResult :: a }
   deriving (Show, Eq)
 
-makeRefs :: Monoid r => [Pakejee r] -> IO (Map String (PakejerRef r))
+makeRefs :: Monoid r => [Pakej r] -> IO (Map String (PakejerRef r))
 makeRefs ps = do
-  xs <- forM ps $ \p -> do
+  xs <- forM ps $ \(Pakej p) -> do
     ref <- newIORef (Fail mempty)
     return (name p, ref <$ p)
   return (Map.fromList xs)
 
-installHook :: Map String (PakejerRef Text) -> Pakejee Text -> IO ()
-installHook refs p =
+installHook :: Map String (PakejerRef Text) -> Pakej Text -> IO ()
+installHook refs (Pakej p) =
   case Map.lookup (name p) refs of
     Nothing  -> return ()
     Just ref -> void . forkIO . forever $ do
@@ -92,7 +93,7 @@ installHook refs p =
 tryIO
   :: Map String (PakejerRef Text)
   -> PakejerRef Text
-  -> Action Text
+  -> Action m Text
   -> IO (Either IOException Text)
 tryIO _ ref (IO ior t) = do
   r <- Text.strip <$> ior

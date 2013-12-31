@@ -3,15 +3,15 @@ module Pakej
   ( -- * Main function
     pakej
     -- * Actions
-  , io, group
+  , run, io, group
     -- * Types
-  , Pakejee, PakejeeI, Action, Access
+  , Pakejee, Named, Action, Access
     -- ** Modifiers
-  , delayed, separated, private, public
+  , delay, separate, private, public
     -- ** Aliases
   , (~>), (|>)
     -- ** Misc
-  , defaultTimeout
+  , IO, Group, defaultTimeout
   ) where
 
 import Control.Lens ((^?!), view, folded)
@@ -24,11 +24,14 @@ import Pakej.Daemon
 
 
 -- | Run Pakej with the provided 'Action's
-pakej :: [Pakejee Text] -> IO ()
+pakej :: [Pakej Text] -> IO ()
 pakej os = do
-  c <- conf (map name os)
+  c <- conf (map pakejName os)
   case view mode c of
     Client o ->
       client (view host c) (c ^?! addrs.folded) o
     Daemon ->
       daemon (view addrs c) (view prev c) os
+
+pakejName :: Pakej r -> String
+pakejName (Pakej p) = name p

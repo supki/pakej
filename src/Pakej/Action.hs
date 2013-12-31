@@ -1,17 +1,19 @@
 {-# LANGUAGE DeriveFunctor #-}
--- | Pakej actions - 'Pakejee's
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+-- | Pakej actions - 'Pakej's
 module Pakej.Action
   ( -- * Actions
-    io, group
+    run, io, group
     -- * Types
-  , Pakejee, PakejeeI, Action(..), name, action
+  , Pakej(..), Pakejee, Named, Action(..), name, action
   , Access(..), access
     -- ** Modifiers
-  , delayed, separated, private, public
+  , delay, separate, private, public
     -- ** Aliases
   , (~>), (|>)
     -- ** Misc
-  , defaultTimeout
+  , IO, Group, defaultTimeout
   ) where
 
 import Data.Text.Lazy (Text, pack)
@@ -19,32 +21,40 @@ import Data.Text.Lazy (Text, pack)
 infix 1 ~>, |>
 
 -- $setup
+-- >>> :set -XGADTs
 -- >>> :set -XOverloadedStrings
 -- >>> :set -XStandaloneDeriving
 -- >>> instance Show (IO a) where show _ = "<IO action>"
--- >>> deriving instance Show r => Show (Action r)
--- >>> deriving instance Show r => Show (PakejeeI r)
+-- >>> deriving instance Show r => Show (Action m r)
 
+
+-- | A 'Pakej' is a 'Pakejee' with the erased 'Action' tag
+data Pakej r where
+  Pakej :: Pakejee m r -> Pakej r
+
+-- | Wrap a 'Pakejee' into 'Pakej'
+run :: Pakejee m r -> Pakej r
+run = Pakej
 
 -- | A 'Pakejee' is a named 'Action' with an 'Access' policy
-type Pakejee r = Access (PakejeeI r)
+type Pakejee m r = Access (Named (Action m r))
 
--- | A 'PakejeeI' is a named 'Action'
-data PakejeeI r = PakejeeI String (Action r)
-  deriving (Functor)
+-- | 'Named' things are things with a 'String' attached to them
+data Named f = Named String f
+  deriving (Show, Eq, Functor)
 
-_name :: PakejeeI r -> String
-_name (PakejeeI n _) = n
+_name :: Named a -> String
+_name (Named n _) = n
 
-_action :: PakejeeI r -> Action r
-_action (PakejeeI _ a) = a
+_action :: Named a -> a
+_action (Named _ a) = a
 
--- | Get 'Pakejee''s name
-name :: Pakejee a -> String
+-- | Get 'Pakej''s name
+name :: Pakejee m r -> String
 name = _name . access
 
 -- | Get 'Pakejee''s action
-action :: Pakejee r -> Action r
+action :: Pakejee m r -> Action m r
 action = _action . access
 
 -- | 'Access' policy for 'Pakejee'
@@ -65,10 +75,16 @@ access (Private a) = a
 access (Public  a) = a
 
 -- | An 'Action' either does some 'IO' or groups other 'Action's
-data Action r =
-    IO (IO r) Int
-  | Group [String] r
-    deriving (Functor)
+data Action (m :: * -> *) r where
+  IO    :: IO r -> Int -> Action IO r
+  Group :: [String] -> r -> Action Group r
+
+instance Functor (Action f) where
+  fmap f (IO ioa n)   = IO (fmap f ioa) n
+  fmap f (Group xs a) = Group xs (f a)
+
+-- | A tag for grouping 'Action's
+data Group a
 
 
 -- | Construct an I/O action that can be queried by the provided name
@@ -78,15 +94,15 @@ data Action r =
 -- Default timeout is @1@ second
 --
 -- >>> io "timestamp" (return "1388418907")
--- Private (PakejeeI "timestamp" (IO <IO action> 1000000))
+-- Private (Named "timestamp" (IO <IO action> 1000000))
 io
   :: String  -- ^ name
   -> IO Text -- ^ I/O action
-  -> Pakejee Text
-io n ioa = Private (PakejeeI n (IO ioa defaultTimeout))
+  -> Pakejee IO Text
+io n ioa = Private (Named n (IO ioa defaultTimeout))
 
 -- | An infix alias for 'io'
-(~>) :: String -> IO Text -> Pakejee Text
+(~>) :: String -> IO Text -> Pakejee IO Text
 (~>) = io
 
 -- | Construct an action that groups results of provided queries
@@ -97,44 +113,38 @@ io n ioa = Private (PakejeeI n (IO ioa defaultTimeout))
 -- Default separator is @ | @
 --
 -- >>> group "group" ["foo", "bar", "baz"]
--- Private (PakejeeI "group" (Group ["foo","bar","baz"] " | "))
+-- Private (Named "group" (Group ["foo","bar","baz"] " | "))
 group
   :: String   -- ^ name
   -> [String] -- ^ names of actions to group
-  -> Pakejee Text
-group n xs = Private (PakejeeI n (Group xs (pack " | ")))
+  -> Pakejee Group Text
+group n xs = Private (Named n (Group xs (pack " | ")))
 
 -- | An infix alias for 'group'
-(|>) :: String -> [String] -> Pakejee Text
+(|>) :: String -> [String] -> Pakejee Group Text
 (|>) = group
 
--- | Override the timeout for the I/O 'Action'
+-- | Change timeout for the I/O 'Action'
 --
--- >>> delayed (3 * defaultTimeout) $ io "timestamp" (return "1388418907")
--- Private (PakejeeI "timestamp" (IO <IO action> 3000000))
-delayed :: Int -> Pakejee a -> Pakejee a
-delayed t = fmap go
- where
-  go x@(PakejeeI _ Group {}) = x
-  go (PakejeeI n (IO ior _)) = PakejeeI n (IO ior t)
+-- >>> delay (* 3) $ io "timestamp" (return "1388418907")
+-- Private (Named "timestamp" (IO <IO action> 3000000))
+delay :: (Int -> Int) -> Pakejee IO a -> Pakejee IO a
+delay f = fmap $ \(Named n (IO ior t)) -> Named n (IO ior (f t))
 
 -- | Override the separator for the grouping 'Action'
 --
--- >>> separated " % "  $ group "group" ["foo", "bar", "baz"]
--- Private (PakejeeI "group" (Group ["foo","bar","baz"] " % "))
-separated :: a -> Pakejee a -> Pakejee a
-separated sep = fmap go
- where
-  go x@(PakejeeI _ IO {})      = x
-  go (PakejeeI n (Group ns _)) = PakejeeI n (Group ns sep)
+-- >>> separate " % "  $ group "group" ["foo", "bar", "baz"]
+-- Private (Named "group" (Group ["foo","bar","baz"] " % "))
+separate :: a -> Pakejee Group a -> Pakejee Group a
+separate sep = fmap $ \(Named n (Group ns _)) -> Named n (Group ns sep)
 
 -- | Public 'Pakejee's are available remotely
 --
 -- >>> public $ group "group" ["foo", "bar", "baz"]
--- Public (PakejeeI "group" (Group ["foo","bar","baz"] " | "))
-public :: Pakejee a -> Pakejee a
-public (Private (PakejeeI n a)) = Public (PakejeeI n a)
-public x                       = x
+-- Public (Named "group" (Group ["foo","bar","baz"] " | "))
+public :: Pakejee m a -> Pakejee m a
+public (Private (Named n a)) = Public (Named n a)
+public x                     = x
 
 -- | Private 'Pakejee's are only available locally. This means you can only
 -- query those through UNIX domain sockets
@@ -142,13 +152,13 @@ public x                       = x
 -- This is the default
 --
 -- >>> group "group" ["foo", "bar", "baz"]
--- Private (PakejeeI "group" (Group ["foo","bar","baz"] " | "))
+-- Private (Named "group" (Group ["foo","bar","baz"] " | "))
 --
 -- >>> private $ public $ group "group" ["foo", "bar", "baz"]
--- Private (PakejeeI "group" (Group ["foo","bar","baz"] " | "))
-private :: Pakejee a -> Pakejee a
-private (Public (PakejeeI n a)) = Private (PakejeeI n a)
-private x                       = x
+-- Private (Named "group" (Group ["foo","bar","baz"] " | "))
+private :: Pakejee m a -> Pakejee m a
+private (Public (Named n a)) = Private (Named n a)
+private x                    = x
 
 -- | Default 'Pakejee' timeout (@1@ second)
 defaultTimeout :: Int

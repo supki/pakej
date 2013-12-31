@@ -21,7 +21,7 @@ of `pakej.hs` see [examples/Main.hs][simple-example] (very simple) or [my pakej.
 (it's more complicated but shows more features)
 
 Almost done; you need to compile `.pakej/pakej.hs` into an executable now (if you happen to be familiar
-with [xmonad][xmonad] all this may ring a bell):
+with [xmonad][xmonad] this may ring a bell):
 
 ```
 % pakej --recompile
@@ -85,7 +85,10 @@ default `main`, so, typical `pakej.hs` will start with:
 import Pakej
 
 main :: IO ()
-main = pakej ...
+main = pakej
+  [ run $ ...
+  , run $ ...
+  ]
 ```
 
 where in place of `...` you write Pakej actions you want to execute and query afterwards
@@ -96,15 +99,15 @@ There are two kinds of Pakej actions: I/O actions and grouping actions. Let's st
 
 #### I/O actions
 
-You can construct I/O action using `io` function or its infix alias `~>`. Next example uses
-[command-qq][command-qq] package for brevity:
+You can construct I/O action using `io` function or its infix alias `~>` (next example uses
+[command-qq][command-qq] package for brevity):
 
 ```haskell
 import Pakej
 import System.Command.QQ (sh)
 
 main :: IO ()
-main = pakej [ io "date" [sh| date +"%m.%d.%y, %a, %H:%M %p" |] ]
+main = pakej [ run $ io "date" [sh| date +"%m.%d.%y, %a, %H:%M %p" |] ]
 ```
 
 ```
@@ -115,8 +118,8 @@ main = pakej [ io "date" [sh| date +"%m.%d.%y, %a, %H:%M %p" |] ]
 12.30.13, Mon, 20:37 PM
 ```
 
-What happened? You constructed a Pakej instance with only one action (called "date"),
-which is run every second and result is stored. You can query its result every moment!
+What happened? You constructed a Pakej instance with the only action called "date",
+which is run every second and its result is stored. You can query its result every moment!
 
 #### Grouping actions
 
@@ -127,8 +130,8 @@ import Pakej
 
 main :: IO ()
 main = pakej
-  [ io "cpu" {- some script figuring out cpu's business -}
-  , io "mem" {- some script figuring out memory's freeness -}
+  [ run $ io "cpu" {- some script figuring out cpu's business -}
+  , run $ io "mem" {- some script figuring out memory's freeness -}
   ]
 ```
 
@@ -140,9 +143,9 @@ import Pakej
 
 main :: IO ()
 main = pakej
-  [ io "cpu" {- some script figuring out cpu's business -}
-  , io "mem" {- some script figuring out memory's freeness -}
-  , group "grouped" ["cpu", "mem"]
+  [ run $ io "cpu" {- some script figuring out cpu's business -}
+  , run $ io "mem" {- some script figuring out memory's freeness -}
+  , run $ group "grouped" ["cpu", "mem"]
   ]
 ```
 
