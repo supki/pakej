@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 module Pakej.Daemon (daemon) where
 
@@ -44,25 +45,35 @@ listen refs p = forkIO $
       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
       k <- recv h
       case k of
-        Right (CQuery query) ->
-          case Map.lookup (Data.Text.unpack query) refs of
-          Just ref ->
-            case (ref, p) of
-              (Private _, PortNumber _) -> hClose h
-              (_, _) -> do
-                r <- readPakejerRef ref
-                send h (DQuery (Text.toStrict (unResult r)))
-          Nothing -> hClose h
-        Right CStatus ->
-          let
-            disclosed = map fst . filter (isPublic . snd) $ Map.toList refs
-          in
-            send h (DStatus (map Data.Text.pack disclosed))
+        Right query -> do
+          res <- respond refs p query
+          case res of
+            Just res' -> send h res'
+            Nothing -> hClose h
         Left _ ->
           hClose h
      `catchIOError` \e -> do
       threadDelay 100000
       print e
+
+respond :: Map String (PakejerRef Text) -> PortID -> Client -> IO (Maybe Daemon)
+respond refs p = \case
+  CQuery query -> case Map.lookup (Data.Text.unpack query) refs of
+    Just ref ->
+      case (ref, p) of
+        (Private _, PortNumber _) -> return Nothing
+        (_, _) -> do
+          r <- readPakejerRef ref
+          return (Just (DQuery (Text.toStrict (unResult r))))
+    Nothing -> return Nothing
+  CStatus -> case p of
+    PortNumber _ ->
+      let
+        disclosed = map fst . filter (isPublic . snd) $ Map.toList refs
+      in
+        return (Just (DStatus (map Data.Text.pack disclosed)))
+    _ ->
+      return (Just (DStatus (map Data.Text.pack (Map.keys refs))))
 
 preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)
