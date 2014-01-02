@@ -15,12 +15,14 @@ import           Control.Lens (makeLenses, makePrisms)
 import           Data.Foldable (asum, foldMap)
 import           Data.List (sort)
 import qualified Data.Text as Text
+import           Data.Version (Version)
 import           Options.Applicative
 import           Network (PortID(..), HostName)
 import           System.Directory (getAppUserDataDirectory)
 import           System.FilePath ((</>))
 
 import           Pakej.Communication (Request(..))
+import           Paths_pakej (version)
 
 
 data Conf = Conf
@@ -46,20 +48,27 @@ makeLenses ''Conf
 makePrisms ''Mode
 makePrisms ''Previous
 
-conf :: [String] -> IO Conf
+conf :: [String] -> IO (Either Version Conf)
 conf opts = do
   sock <- appDirectory "pakej" "pakej.sock"
   customExecParser (prefs showHelpOnError) (parser sock opts)
 
-parser :: FilePath -> [String] -> ParserInfo Conf
+parser :: FilePath -> [String] -> ParserInfo (Either Version Conf)
 parser sock opts = info (helper <*> go) fullDesc
  where
-  go = Conf
+  go = asum
+    [ fmap Left versionParser
+    , fmap Right confParser
+    ]
+
+  versionParser = flag' version (long "version" <> short 'v' <> help "print version information")
+
+  confParser = Conf
     <$> strOption (long "hostname" <> value "localhost" <> help "hostname to connect")
     <*> asum
       [ some $ asum
-        [ port (long "port" <> help "use network port")
-        , unix (long "unix" <> help "use UNIX domain socket")
+        [ port (long "port" <> help "port to connect")
+        , unix (long "unix" <> help "UNIX domain socket to connect")
         ]
       , pure [UnixSocket sock]
       ]
@@ -71,7 +80,7 @@ parser sock opts = info (helper <*> go) fullDesc
       , pure Daemon
       ]
     <*> asum
-      [ flag' Replace (long "replace" <> help "replace running pakej (if any)")
+      [ flag' Replace (long "replace" <> help "replace running pakej instance")
       , flag' Submit  (long "submit"  <> help "submit to running pakej (default)")
       , pure Submit
       ]

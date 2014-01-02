@@ -16,6 +16,8 @@ module Pakej
 
 import Control.Lens ((^?!), view, folded)
 import Data.Text.Lazy (Text)
+import Data.Version (showVersion)
+import Text.Printf (printf)
 
 import Pakej.Action
 import Pakej.Client
@@ -27,11 +29,13 @@ import Pakej.Daemon
 pakej :: [Pakej Text] -> IO ()
 pakej os = do
   c <- conf (map pakejName os)
-  case view mode c of
-    Client o ->
-      client (view host c) (c ^?! addrs.folded) o
-    Daemon ->
-      daemon (view addrs c) (view prev c) os
+  case c of
+    Left  v -> printf "pakej version %s\n" (showVersion v)
+    Right x -> case view mode x of
+      Client o ->
+        client (view host x) (x ^?! addrs.folded) o
+      Daemon ->
+        daemon (view addrs x) (view prev x) os
 
 pakejName :: Pakej r -> String
 pakejName (Pakej p) = name p

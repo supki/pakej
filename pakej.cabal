@@ -37,6 +37,8 @@ library
     Pakej.Conf
     Pakej.Daemon
     Pakej.Daemon.Daemonize
+  other-modules:
+    Paths_pakej
 
 executable pakej
   default-language:  Haskell2010
