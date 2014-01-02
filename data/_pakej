@@ -1,0 +1,23 @@
+#compdef pakej
+# zsh completion script for pakej
+
+function _pakej ()
+{
+  _arguments \
+    {-h,--help}'[show help text]' \
+    {-v,--version}'[print version information]' \
+    '--hostname=[hostname to connect]' \
+    '--port=[port to connect]' \
+    '--unix=[UNIX domain socket to connect]' \
+    '--replace[replace running pakej]' \
+    '--recompile[recompile pakej executable]' \
+    ':pakej command:_pakej_command'
+}
+
+function _pakej_command ()
+{
+  _pakej_available_commands=( $(pakej shto-to) )
+  compadd "$@" -a -- _pakej_available_commands
+}
+
+_pakej "$@"
