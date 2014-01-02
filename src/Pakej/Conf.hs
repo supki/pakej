@@ -20,7 +20,7 @@ import           Network (PortID(..), HostName)
 import           System.Directory (getAppUserDataDirectory)
 import           System.FilePath ((</>))
 
-import           Pakej.Communication (Client(..))
+import           Pakej.Communication (Request(..))
 
 
 data Conf = Conf
@@ -33,7 +33,7 @@ data Conf = Conf
 data Mode =
     Daemon
   | Client
-    { action :: Client }
+    { action :: Request }
     deriving (Show, Eq)
 
 data Previous =

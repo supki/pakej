@@ -11,7 +11,7 @@ import           System.Timeout (timeout)
 import           Pakej.Communication
 
 
-client :: HostName -> PortID -> Client -> IO ()
+client :: HostName -> PortID -> Request -> IO ()
 client n p command = do
   res <- timeout (5 * second) $ do
     h <- connectTo n p

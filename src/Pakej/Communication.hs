@@ -4,7 +4,7 @@ module Pakej.Communication
   ( -- * Communication
     send, recv
     -- * Commands
-  , Client(..), Daemon(..)
+  , Request(..), Response(..)
   ) where
 
 import           Control.Applicative
@@ -27,16 +27,16 @@ class Communicate m where
   default recv :: Serialize m => Handle -> IO (Either String m)
   recv = evaluate <=< fmap decodeLazy . ByteString.hGetContents
 
-instance Communicate Client
-instance Communicate Daemon
+instance Communicate Request
+instance Communicate Response
 
 
-data Client =
+data Request =
     CQuery Text
   | CStatus
     deriving (Show, Eq)
 
-instance Serialize Client where
+instance Serialize Request where
   put (CQuery t) = do
     putWord8 0
     put (Text.encodeUtf8 t)
@@ -51,12 +51,12 @@ instance Serialize Client where
       1 -> return CStatus
       _ -> fail (printf "Unknown Pakej.Command.Client value tag: %d" w)
 
-data Daemon =
+data Response =
     DQuery Text
   | DStatus [Text]
     deriving (Show, Eq)
 
-instance Serialize Daemon where
+instance Serialize Response where
   put (DQuery t) = do
     putWord8 0
     put (Text.encodeUtf8 t)

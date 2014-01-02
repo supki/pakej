@@ -56,7 +56,7 @@ listen refs p = forkIO $
       threadDelay 100000
       print e
 
-respond :: Map String (PakejerRef Text) -> PortID -> Client -> IO (Maybe Daemon)
+respond :: Map String (PakejerRef Text) -> PortID -> Request -> IO (Maybe Response)
 respond refs p = \case
   CQuery query -> case Map.lookup (Data.Text.unpack query) refs of
     Just ref ->

@@ -13,7 +13,7 @@ import Pakej.Communication
 
 spec :: Spec
 spec = do
-  describe "Client" $ do
+  describe "Request" $ do
     it "has working serialization for CQuery" $ do
       let query = CQuery "ДМИТРИЙ МАЛИКОВ"
       roundtrip query `shouldPreview` query `through` _Right
@@ -21,15 +21,15 @@ spec = do
     it "has working serialization for CStatus" $
       roundtrip CStatus `shouldPreview` CStatus `through` _Right
 
-    it "only uses tag 0" $
-      decodeClient (ByteString.pack [0x02, 0x04, 0x07])
+    it "only uses tags < 2" $
+      decodeRequest (ByteString.pack [0x02, 0x04, 0x07])
         `shouldPreview`
            [ "Failed reading: Unknown Pakej.Command.Client value tag: 2"
            , "Empty call stack"
            ]
         `through` _Left.to lines
 
-  describe "Daemon" $ do
+  describe "Response" $ do
     it "has working serialization for DResponse" $ do
       let response = DQuery "ДМИТРИЙ МАЛИКОВ"
       roundtrip response `shouldPreview` response `through` _Right
@@ -38,8 +38,8 @@ spec = do
       let status = DStatus ["foo", "bar", "baz"]
       roundtrip status `shouldPreview` status `through` _Right
 
-    it "only uses tag 0" $
-      decodeDaemon (ByteString.pack [0x02, 0x04, 0x07])
+    it "only uses tags < 2" $
+      decodeResponse (ByteString.pack [0x02, 0x04, 0x07])
         `shouldPreview`
            [ "Failed reading: Unknown Pakej.Command.Daemon value tag: 2"
            , "Empty call stack"
@@ -49,8 +49,8 @@ spec = do
 roundtrip :: Serialize a => a -> Either String a
 roundtrip = decode . encode
 
-decodeClient :: ByteString -> Either String Client
-decodeClient = decode
+decodeRequest :: ByteString -> Either String Request
+decodeRequest = decode
 
-decodeDaemon :: ByteString -> Either String Daemon
-decodeDaemon = decode
+decodeResponse :: ByteString -> Either String Response
+decodeResponse = decode
