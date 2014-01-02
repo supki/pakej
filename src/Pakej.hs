@@ -5,7 +5,7 @@ module Pakej
     -- * Actions
   , run, io, group
     -- * Types
-  , Pakejee, Named, Action, Access
+  , Pakej, Pakejee, Named, Action, Access
     -- ** Modifiers
   , delay, separate, private, public
     -- ** Aliases
