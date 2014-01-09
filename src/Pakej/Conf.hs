@@ -12,8 +12,7 @@ module Pakej.Conf
   ) where
 
 import           Control.Lens (makeLenses, makePrisms)
-import           Data.Foldable (asum, foldMap)
-import           Data.List (sort)
+import           Data.Foldable (asum)
 import qualified Data.Text as Text
 import           Data.Version (Version)
 import           Options.Applicative
@@ -48,13 +47,11 @@ makeLenses ''Conf
 makePrisms ''Mode
 makePrisms ''Previous
 
-conf :: [String] -> IO (Either Version Conf)
-conf opts = do
-  sock <- appDirectory "pakej" "pakej.sock"
-  customExecParser (prefs showHelpOnError) (parser sock opts)
+conf :: IO (Either Version Conf)
+conf = appDirectory "pakej" "pakej.sock" >>= customExecParser (prefs showHelpOnError) . parser
 
-parser :: FilePath -> [String] -> ParserInfo (Either Version Conf)
-parser sock opts = info (helper <*> go) fullDesc
+parser :: FilePath -> ParserInfo (Either Version Conf)
+parser sock = info (helper <*> go) fullDesc
  where
   go = asum
     [ fmap Left versionParser
@@ -73,10 +70,8 @@ parser sock opts = info (helper <*> go) fullDesc
       , pure [UnixSocket sock]
       ]
     <*> asum
-      [ subparser
-        ( command "shto-to" (info (pure (Client CStatus)) fullDesc)
-       <> foldMap clientOption (sort opts)
-        )
+      [ subparser (command "shto-to" (info (pure (Client CStatus)) fullDesc))
+      , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "command to execute")
       , pure Daemon
       ]
     <*> asum
@@ -88,10 +83,6 @@ parser sock opts = info (helper <*> go) fullDesc
 
   port = fmap (PortNumber . fromInteger). option
   unix = fmap UnixSocket . strOption
-
-clientOption :: String -> Mod CommandFields Mode
-clientOption opt =
-  command opt (info (pure (Client (CQuery (Text.pack opt)))) fullDesc)
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath
