@@ -5,7 +5,7 @@ module Pakej.Conf
   ( Conf(..), Mode(..), Previous(..)
   , conf
   , addrs, mode, prev, host
-  , _Daemon, _Client, _Replace, _Ignore, _Submit
+  , _Daemon, _Client, _Replace, _Submit
 #ifdef TEST
   , parser
 #endif
@@ -35,13 +35,11 @@ data Conf = Conf
 
 data Mode =
     Daemon
-  | Client
-    { action :: Request }
+  | Client Request
     deriving (Show, Eq)
 
 data Previous =
     Replace
-  | Ignore
   | Submit
     deriving (Show, Eq)
 
@@ -82,7 +80,7 @@ parser sock = info (helper <*> go) fullDesc
     <* optional (switch (long "recompile" <> help "recompile pakej executable"))
     <*> asum
       [ subparser (command "shto-to" (info (pure (Client CStatus)) fullDesc))
-      , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "command to execute")
+      , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "query to execute")
       , pure Daemon
       ]
 

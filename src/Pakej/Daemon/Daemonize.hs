@@ -53,7 +53,6 @@ killPakej pidfile prev = tryIOError $ do
     Submit  -> do
       hPutStrLn stderr (printf "Can't proceed, found running instance: %s" (show pid))
       exitFailure
-    Ignore  -> return ()
 
 -- | Save current @pakej@ process pid
 savePakej :: FilePath -> IO ()

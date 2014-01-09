@@ -27,12 +27,12 @@ import Pakej.Daemon
 
 -- | Run Pakej with the provided 'Action's
 pakej :: [Pakej Text] -> IO ()
-pakej os = do
+pakej ps = do
   c <- conf
   case c of
     Left  v -> printf "pakej version %s\n" (showVersion v)
     Right x -> case view mode x of
-      Client o ->
-        client (view host x) (x ^?! addrs.folded) o
+      Client q ->
+        client (view host x) (x ^?! addrs.folded) q
       Daemon ->
-        daemon (view addrs x) (view prev x) os
+        daemon (view addrs x) (view prev x) ps
