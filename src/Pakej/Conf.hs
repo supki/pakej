@@ -18,7 +18,9 @@ import           Data.Version (Version)
 import           Options.Applicative
 import           Network (PortID(..), HostName)
 import           System.Directory (getAppUserDataDirectory)
+import           System.Environment (withProgName)
 import           System.FilePath ((</>))
+import           Text.Printf (printf)
 
 import           Pakej.Communication (Request(..))
 import           Paths_pakej (version)
@@ -27,8 +29,8 @@ import           Paths_pakej (version)
 data Conf = Conf
   { _host  :: HostName
   , _addrs :: [PortID]
-  , _mode  :: Mode
   , _prev  :: Previous
+  , _mode  :: Mode
   } deriving (Show, Eq)
 
 data Mode =
@@ -48,7 +50,10 @@ makePrisms ''Mode
 makePrisms ''Previous
 
 conf :: IO (Either Version Conf)
-conf = appDirectory "pakej" "pakej.sock" >>= customExecParser (prefs showHelpOnError) . parser
+conf = appDirectory progn (printf "%s.sock" progn) >>= withProgName progn . parse parser
+ where
+  progn   = "pakej"
+  parse p = customExecParser (prefs showHelpOnError) . p
 
 parser :: FilePath -> ParserInfo (Either Version Conf)
 parser sock = info (helper <*> go) fullDesc
@@ -70,16 +75,16 @@ parser sock = info (helper <*> go) fullDesc
       , pure [UnixSocket sock]
       ]
     <*> asum
-      [ subparser (command "shto-to" (info (pure (Client CStatus)) fullDesc))
-      , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "command to execute")
-      , pure Daemon
-      ]
-    <*> asum
       [ flag' Replace (long "replace" <> help "replace running pakej instance")
       , flag' Submit  (long "submit"  <> help "submit to running pakej (default)")
       , pure Submit
       ]
     <* optional (switch (long "recompile" <> help "recompile pakej executable"))
+    <*> asum
+      [ subparser (command "shto-to" (info (pure (Client CStatus)) fullDesc))
+      , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "command to execute")
+      , pure Daemon
+      ]
 
   port = fmap (PortNumber . fromInteger). option
   unix = fmap UnixSocket . strOption
