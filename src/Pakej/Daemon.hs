@@ -26,8 +26,6 @@ import           Pakej.Communication
 import           Pakej.Conf (Previous)
 import           Pakej.Daemon.Daemonize (daemonize)
 
-{-# ANN module "HLint: Use camelCase" #-}
-
 
 daemon :: [PortID] -> Previous -> [Pakej Text] -> IO b
 daemon ps t pjs =
