@@ -44,21 +44,35 @@ close fds = do
     dupTo fd' fd
 
 -- | Kill running @pakej@ process if exists
+--
+-- Return 'Left' if
+--
+--   * The pidfile does not exist or does not contain a readable number
+--
+--   * The process with the PID stored in the pidfile does not exist
+--
+--   * Pakej couldn't terminate the process with the stored PID
 killPakej :: FilePath -> Previous -> IO (Either IOError ())
 killPakej pidfile prev = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
-  signalProcess nullSignal pid
+  pingProcess pid
   case prev of
-    Replace -> signalProcess sigTERM pid
-    Submit  -> do
-      hPutStrLn stderr (printf "Can't proceed, found running instance: %s" (show pid))
-      exitFailure
+    Replace -> terminateProcess pid
+    Submit  -> die (printf "Can't proceed, found running instance: %s" (show pid))
+
+-- | Print the message in stderr and then die with @EXIT_FAILURE@
+die :: String -> IO a
+die msg = do
+  hPutStrLn stderr msg
+  exitFailure
+
+pingProcess, terminateProcess :: ProcessID -> IO ()
+pingProcess      = signalProcess nullSignal
+terminateProcess = signalProcess sigTERM
 
 -- | Save current @pakej@ process pid
 savePakej :: FilePath -> IO ()
-savePakej pidfile = do
-  pid <- getProcessID
-  writeFile pidfile (show pid)
+savePakej pidfile = getProcessID >>= writeFile pidfile . show
 
 -- | @\~\/.pakej\/%s@
 appDirectory :: String -> FilePath -> IO FilePath
