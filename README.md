@@ -1,6 +1,6 @@
 Pakej
 =====
-[![Build Status](https://secure.travis-ci.org/supki/pakej.png?branch=master)](http://travis-ci.org/supki/pakej)
+[![Build Status](https://secure.travis-ci.org/supki/pakej.png?branch=master)](https://travis-ci.org/supki/pakej)
 
 Pakej is a status bar daemon. It does not actually draw any status bar,
 only executes I/O actions in the background and stores their results.
@@ -172,5 +172,5 @@ daemon instance
   [simple-example]: https://github.com/supki/pakej/blob/master/example/Main.hs
   [supki-example]: https://github.com/supki/.dotfiles/blob/master/core/pakej.hs
   [unix-domain-socket]: http://en.wikipedia.org/wiki/Unix_domain_socket
-  [command-qq]: http://hackage.haskell.org/package/command-qq
+  [command-qq]: https://hackage.haskell.org/package/command-qq
   [pakej-haddocks]: http://supki.github.io/pakej/Pakej.html
