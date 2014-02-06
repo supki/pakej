@@ -48,7 +48,7 @@ your `pakej.hs`:
 if you're not in the mood of guessing available Pakej commands, just ask it to show them:
 
 ```
-% pakej shto-to
+% pakej --stat
 date
 ```
 

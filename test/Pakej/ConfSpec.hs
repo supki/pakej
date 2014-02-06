@@ -37,8 +37,8 @@ spec = do
       parse (parser "pakej.sock") ["bar"]
         `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Client
 
-    it "converts shto-to command into a status query" $
-      parse (parser "pakej.sock") ["shto-to"]
+    it "converts --stat option into a status query" $
+      parse (parser "pakej.sock") ["--stat"]
         `shouldPreview` CStatus `through` _Right._Right.mode._Client
 
   context "addr" $ do

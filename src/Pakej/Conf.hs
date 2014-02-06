@@ -79,7 +79,7 @@ parser sock = info (helper <*> go) fullDesc
       ]
     <* optional (switch (long "recompile" <> help "recompile pakej executable"))
     <*> asum
-      [ subparser (command "shto-to" (info (pure (Client CStatus)) fullDesc))
+      [ flag' (Client CStatus) (long "stat" <> help "ask pakej instance what it has to show")
       , argument (Just . Client . CQuery . Text.pack) (metavar "QUERY" <> help "query to execute")
       , pure Daemon
       ]
