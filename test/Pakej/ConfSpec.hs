@@ -4,7 +4,6 @@ module Pakej.ConfSpec (spec) where
 
 import Control.Lens
 import Data.Monoid (mempty)
-import Data.Version (showVersion)
 import Network (PortID(..))
 import Options.Applicative
 import Test.Hspec
@@ -12,6 +11,8 @@ import Test.Hspec.Expectations.Lens
 
 import Pakej.Communication
 import Pakej.Conf
+
+import Paths_pakej (version)
 
 
 instance Show ParserFailure where
@@ -21,12 +22,10 @@ spec :: Spec
 spec = do
   context "version" $ do
     it "shows verion if --version is provided" $
-      parse (parser "pakej.sock") ["--version"]
-        `shouldPreview` "0.1.0.0" `through` _Right._Left.to showVersion
+      parse (parser "pakej.sock") ["--version"] `shouldHave` _Right._Left.only version
 
     it "shows verion if -v is provided" $
-      parse (parser "pakej.sock") ["-v"]
-        `shouldPreview` "0.1.0.0" `through` _Right._Left.to showVersion
+      parse (parser "pakej.sock") ["-v"] `shouldHave` _Right._Left.only version
 
   context "mode" $ do
     it "starts as daemon if no command arguments are provided" $

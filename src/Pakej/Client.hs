@@ -1,11 +1,9 @@
-module Pakej.Client where
+module Pakej.Client (client) where
 
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
+import qualified Data.Text.Lazy as Text
+import qualified Data.Text.Lazy.IO as Text
 import           Network
-import           System.Directory (getAppUserDataDirectory)
 import           System.Exit (exitFailure)
-import           System.FilePath ((</>))
 import           System.Timeout (timeout)
 
 import           Pakej.Communication
@@ -26,12 +24,6 @@ client n p command = do
       Text.putStrLn response
     Just (Right (DStatus commands)) ->
       Text.putStrLn (Text.unwords commands)
-
--- | @\~\/.pakej\/%s@
-appDirectory :: String -> FilePath -> IO FilePath
-appDirectory app filename = do
-  dir <- getAppUserDataDirectory app
-  return (dir </> filename)
 
 second :: Int
 second = 1000000

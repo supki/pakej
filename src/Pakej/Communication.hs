@@ -11,8 +11,8 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Exception (evaluate)
 import qualified Data.ByteString.Lazy as ByteString
-import           Data.Text (Text)
-import qualified Data.Text.Encoding as Text
+import           Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy.Encoding as Text
 import           Data.Serialize (Serialize(..), getWord8, putWord8, encodeLazy, decodeLazy)
 import           System.IO (Handle)
 import           Text.Printf (printf)

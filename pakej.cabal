@@ -1,5 +1,5 @@
 name:                pakej
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Status bar daemon
 -- description:         
 homepage:            http://example.com/
@@ -17,26 +17,28 @@ extra-source-files:
 library
   default-language:  Haskell2010
   build-depends:
-      base == 4.*
+      base                 == 4.*
     , bytestring
     , cereal
     , containers
     , directory
     , filepath
-    , lens
+    , lens                 >= 4.0
     , network
     , optparse-applicative
     , text
     , unix
+    , netwire              == 4.*
+    , transformers
   hs-source-dirs:    src
   exposed-modules:
     Pakej
-    Pakej.Action
     Pakej.Client
     Pakej.Communication
     Pakej.Conf
     Pakej.Daemon
     Pakej.Daemon.Daemonize
+    Pakej.Widget
   other-modules:
     Paths_pakej
 

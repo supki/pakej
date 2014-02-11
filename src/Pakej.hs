@@ -1,32 +1,34 @@
 -- | Pakej - status bar daemon
 module Pakej
-  ( -- * Main function
+  ( -- * The main function
     pakej
-    -- * Actions
-  , run, io, group
     -- * Types
-  , Pakej, Pakejee, Named, Action, Access
-    -- ** Modifiers
-  , delay, separate, private, public
-    -- ** Aliases
-  , (~>), (|>)
+  , Widget, Label, Config, PakejException
+    -- * Widgets construction
+  , text, system, widget
+    -- * Operations on widgets
+  , public, private, aggregate
+    -- * Operations on widgets' configuration
+  , every, inbetween
     -- ** Misc
-  , IO, Group, defaultTimeout
+  , (.), id, minute, second
   ) where
 
+import Control.Category ((.), id)
 import Control.Lens ((^?!), view, folded)
 import Data.Text.Lazy (Text)
 import Data.Version (showVersion)
+import Prelude hiding ((.), id)
 import Text.Printf (printf)
 
-import Pakej.Action
+import Pakej.Widget
 import Pakej.Client
 import Pakej.Conf
 import Pakej.Daemon
 
 
 -- | Run Pakej with the provided 'Action's
-pakej :: [Pakej Text] -> IO ()
+pakej :: Integral n => Widget IO Text Text (Config n) a -> IO ()
 pakej ps = do
   c <- conf
   case c of
