@@ -3,6 +3,9 @@ language: haskell
 before_install:
     - cabal install cpphs
     - cabal install command-qq
+    - cabal get netwire-4.0.7
+    - sed -e 's/profunctors.*/profunctors,/' -e 's/bifunctors.*/bifunctors,/' -i netwire-4.0.7/netwire.cabal
+    - cabal install netwire-4.0.7/netwire.cabal
     - git clone https://github.com/supki/.dotfiles
 
 script:
