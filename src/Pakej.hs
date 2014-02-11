@@ -2,16 +2,27 @@
 module Pakej
   ( -- * The main function
     pakej
-    -- * Types
-  , Widget, Label, Config, PakejException
-    -- * Widgets construction
-  , text, system, widget
-    -- * Operations on widgets
-  , public, private, aggregate
-    -- * Operations on widgets' configuration
-  , every, inbetween
+    -- * Widget
+  , Widget, (.), id
+    -- ** Store the result
+  , Label(..)
+  , public
+  , private
+    -- ** Combine the results
+  , aggregate
+    -- ** Construct
+  , text
+  , system
+  , widget
+    -- ** Configure
+  , Config
+  , defaultConfig
+  , every
+  , second
+  , minute
+  , inbetween
     -- ** Misc
-  , (.), id, minute, second
+  , PakejException
   ) where
 
 import Control.Category ((.), id)
@@ -27,7 +38,7 @@ import Pakej.Conf
 import Pakej.Daemon
 
 
--- | Run Pakej with the provided 'Action's
+-- | Run Pakej with the provided 'Widget'
 pakej :: Integral n => Widget IO Text Text (Config n) a -> IO ()
 pakej ps = do
   c <- conf

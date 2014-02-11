@@ -1,20 +1,25 @@
 {-# LANGUAGE DeriveDataTypeable #-}
--- | Pakej 'Widget' construction
+-- | Pakej 'Widget's
 module Pakej.Widget
   ( Widget
+    -- * Store the result
   , Label(..)
   , public
   , private
+    -- * Combine the results
   , aggregate
+    -- * Construct
   , text
   , system
   , widget
+    -- * Configure
   , Config
   , defaultConfig
   , every
   , second
   , minute
   , inbetween
+    -- * Misc
   , PakejException
   ) where
 
@@ -36,12 +41,14 @@ import           Data.Typeable (Typeable, cast)
 import           Prelude hiding ((.), id, mapM)
 import           System.Exit (ExitCode(..))
 
+-- | Widget is an Automaton that operates over 'Monad' @m@ collecting
+-- results in the mapping @l -> v@
 type Widget m l v = Wire PakejException (WriterT (Map (Label l) v) m)
 
--- | Labal is something 'Widget''s result can be addressed by
+-- | Label is something 'Widget''s result can be addressed by; typically, it's 'Text'
 --
--- Public results are available everywhere, but the private ones
--- are only available for local queries
+-- Public results are available everywhere, but the private ones are only available
+-- for local queries (meaning queries to the local UNIX socket Pakej's listening)
 data Label t =
     Public  { unLabel :: t }
   | Private { unLabel :: t }
@@ -69,7 +76,9 @@ store l = mkFixM $ \_dt v -> do
   tell (Map.singleton l v)
   return (Right v)
 
--- | Aggregate all successful 'Widget's's results
+-- | Aggregate all successful 'Widget's' results
+--
+-- Failed 'Widget's' results are skipped so they do not clutter the resulting value
 aggregate :: (Ord l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
 aggregate xs = go . (multitry xs &&& id)
  where go = mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
@@ -102,7 +111,7 @@ instance Exception PakejException where
 handlePakejException :: (PakejException -> IO a) -> IO a -> IO a
 handlePakejException = handle
 
--- | Construct a 'Widget' from the IO action returning 'Text'
+-- | Construct a 'Widget' from the 'IO' action that returns 'Text'
 text :: (Ord l, MonadIO m, Integral n) => IO Text -> Widget m l v (Config n) Text
 text = constant
 
@@ -141,16 +150,16 @@ widget s io = mkGen $ \_dt n -> do
 --
 -- /Note/: that's basically an internal function, but maybe it'll be useful for someone
 final :: (Ord l, MonadIO m) => IORef (Maybe a) -> Widget m l v x a
-final ref = mkFixM $ \_dt _ ->
-  liftM (maybe (Left PakejEmptyWidgetException) Right) . liftIO $ readIORef ref
+final ref = mkFixM $ \_dt _ -> liftIO $
+  liftM (maybe (Left PakejEmptyWidgetException) Right) (readIORef ref)
 
 -- | 'Widget' configuration
 data Config n = Config
-  { timeout   :: n
-  , separator :: Text
+  { timeout   :: n    -- ^ Time to wait between 'Widget' updates
+  , separator :: Text -- ^ Text to separate aggregated results
   } deriving (Show, Eq)
 
--- | The default Pakej configuration
+-- | The default 'Widget' configuration
 defaultConfig :: Num n => Config n
 defaultConfig = Config { timeout = second, separator = Text.pack " | " }
 
