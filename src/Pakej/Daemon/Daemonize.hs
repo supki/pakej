@@ -12,19 +12,19 @@ import System.Posix hiding (Ignore)
 import Text.Read (readMaybe)
 import Text.Printf (printf)
 
-import Pakej.Conf (Previous(..))
+import Pakej.Conf (Existing(..))
 
 
 -- | Forks, prepares child process to serve as a daemon, then exits
 -- with @EXIT_SUCCESS@
-daemonize :: Previous -> IO a -> IO b
+daemonize :: Existing -> IO a -> IO b
 daemonize prev ioa = do
   forkProcess (void (prepareChild prev *> ioa))
   exitSuccess
 
 -- | Change the working directory to @\/@, set the fmask to @027@,
 -- close @stdin@, @stdout@, and @stderr@, create Unix socket file
-prepareChild :: Previous -> IO ()
+prepareChild :: Existing -> IO ()
 prepareChild prev = do
   changeWorkingDirectory "/"
   pidfile <- appDirectory "pakej" "pakej.pid"
@@ -52,13 +52,13 @@ close fds = do
 --   * The process with the PID stored in the pidfile does not exist
 --
 --   * Pakej couldn't terminate the process with the stored PID
-killPakej :: FilePath -> Previous -> IO (Either IOError ())
+killPakej :: FilePath -> Existing -> IO (Either IOError ())
 killPakej pidfile prev = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
   pingProcess pid
   case prev of
     Replace -> terminateProcess pid
-    Submit  -> die (printf "Can't proceed, found running instance: %s" (show pid))
+    Respect -> die (printf "Can't proceed, found running instance: %s" (show pid))
 
 -- | Print the message in stderr and then die with @EXIT_FAILURE@
 die :: String -> IO a

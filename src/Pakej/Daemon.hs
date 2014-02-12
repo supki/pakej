@@ -8,7 +8,7 @@ import           Control.Exception (bracket)
 import           Control.Monad (forM_, forever)
 import           Control.Monad.Trans.Writer (WriterT(..), tell)
 import           Control.Monad.IO.Class (MonadIO(..))
-import           Control.Wire
+import           Control.Wire hiding (loop)
 import           Data.Foldable (for_)
 import           Data.IORef
 import qualified Data.Map as Map
@@ -23,11 +23,11 @@ import           System.IO.Error (catchIOError, tryIOError)
 
 import           Pakej.Widget
 import           Pakej.Communication
-import           Pakej.Conf (Previous)
+import           Pakej.Conf (Existing)
 import           Pakej.Daemon.Daemonize (daemonize)
 
 
-daemon :: Integral n => [PortID] -> Previous -> Widget IO Text Text (Config n) a -> IO b
+daemon :: Integral n => [PortID] -> Existing -> Widget IO Text Text (Config n) a -> IO b
 daemon ps t w =
   daemonize t $ do
     ref <- newIORef Map.empty
@@ -41,34 +41,31 @@ listen ref p = forkIO $
   bracket (preparePort p >> listenOn p) sClose $ \s ->
     forever $
       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
-      k <- recv h
-      case k of
-        Right query -> do
-          m   <- readIORef ref
-          res <- respond m p query
-          for_ res (send h)
-          hClose h
-        Left _ ->
-          hClose h
-     `catchIOError` \e -> do
-      threadDelay 100000
-      print e
+        k <- recv h
+        case k of
+          Right query -> do
+            m <- readIORef ref
+            for_ (response m p query) (send h)
+          Left _ ->
+            return ()
+       `catchIOError` \e -> do
+        threadDelay 100000
+        print e
 
-respond :: Map (Label Text) Text -> PortID -> Request -> IO (Maybe Response)
-respond m p = \case
+response :: Map (Label Text) Text -> PortID -> Request -> Maybe Response
+response m p = \case
   CQuery key -> case (lookupLabel key m, p) of
-    (Just (Private _, _), PortNumber _) -> return Nothing
+    (Just (Private _, _), PortNumber _) ->
+      Nothing
     (Just (_, r), _) -> do
-      return (Just (DQuery (Text.replace (Text.pack "\n") (Text.pack "") r)))
-    (Nothing, _) -> return Nothing
+      Just (DQuery (Text.replace (Text.pack "\n") (Text.pack "") r))
+    (Nothing, _) ->
+      Nothing
   CStatus -> case p of
     PortNumber _ ->
-      let
-        disclosed = [k | Public k <- Map.keys m]
-      in
-        return (Just (DStatus disclosed))
+      Just (DStatus [k | Public k <- Map.keys m])
     _ ->
-      return (Just (DStatus (map unLabel (Map.keys m))))
+      Just (DStatus (map unLabel (Map.keys m)))
 
 preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)

@@ -45,7 +45,9 @@ pakej ps = do
   case c of
     Left  v -> printf "pakej version %s\n" (showVersion v)
     Right x -> case view mode x of
-      Client q ->
+      Query q ->
         client (view host x) (x ^?! addrs.folded) q
+      Repl ->
+        repl (view host x) (x ^?! addrs.folded)
       Daemon ->
         daemon (view addrs x) (view prev x) ps

@@ -34,11 +34,15 @@ spec = do
 
     it "converts commands into queries" $
       parse (parser "pakej.sock") ["bar"]
-        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Client
+        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Query
 
     it "converts --stat option into a status query" $
       parse (parser "pakej.sock") ["--stat"]
-        `shouldPreview` CStatus `through` _Right._Right.mode._Client
+        `shouldPreview` CStatus `through` _Right._Right.mode._Query
+
+    it "converts --repl option into a repl session" $
+      parse (parser "pakej.sock") ["--repl"]
+        `shouldHave` _Right._Right.mode._Repl
 
   context "addr" $ do
     it "uses unix socket if no command arguments are provided" $
@@ -64,15 +68,15 @@ spec = do
   context "term" $ do
     it "submits to running pakej if no arguments are provided" $
       parse (parser "pakej.sock") []
-        `shouldPreview` Submit `through` _Right._Right.prev
+        `shouldPreview` Respect `through` _Right._Right.prev
 
     it "replaces running pakej if --replace argument is provided" $
       parse (parser "pakej.sock") ["--replace"]
         `shouldPreview` Replace `through` _Right._Right.prev
 
-    it "submits to running pakej if --submit argument is provided" $
-      parse (parser "pakej.sock") ["--submit"]
-        `shouldPreview` Submit `through` _Right._Right.prev
+    it "submits to running pakej if --respect argument is provided" $
+      parse (parser "pakej.sock") ["--respect"]
+        `shouldPreview` Respect `through` _Right._Right.prev
 
   context "hostname" $ do
     it "connects to localhost if no arguments are provided" $
@@ -86,15 +90,15 @@ spec = do
   context "mixed" $ do
     it "converts commands before options into queries" $
       parse (parser "pakej.sock") ["bar", "--port", "1234", "--hostname", "localhost"]
-        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Client
+        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Query
 
     it "converts commands between options into queries" $
       parse (parser "pakej.sock") ["--port", "1234", "bar", "--hostname", "localhost"]
-        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Client
+        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Query
 
     it "converts commands after options into queries" $
       parse (parser "pakej.sock") ["--port", "1234", "--hostname", "localhost", "bar"]
-        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Client
+        `shouldPreview` CQuery "bar" `through` _Right._Right.mode._Query
 
 parse :: ParserInfo a -> [String] -> Either ParserFailure a
 parse = execParserPure (prefs mempty)
