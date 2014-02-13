@@ -27,9 +27,9 @@ repl host port = do
   signalHandlers
   forever $ do
     prompt msg
-    raw <- getLine
-    case parseQuery raw of
-      Just query -> do
+    input <- getLine
+    case parseInput input of
+      Right query -> do
         res <- exchange host port query
         case res of
           Nothing ->
@@ -40,8 +40,10 @@ repl host port = do
             print response
           Just (Right (DStatus response)) ->
             print response
-      Nothing ->
-        hPutStrLn stderr ("*** Unknown command: " ++ show raw)
+      Left (InvalidQuery query) ->
+        hPutStrLn stderr ("*** Invalid query: " ++ show query)
+      Left (UnknownCommand command) ->
+        hPutStrLn stderr ("*** Unknown command: " ++ show command)
    `catches`
     [ handler_ (_IOException.errorType._EOF) $ do
         putStrLn "\nLeaving Pakej alone."
@@ -93,8 +95,14 @@ prompt m = do
   putStr m
   hFlush stdout
 
-parseQuery :: String -> Maybe Request
-parseQuery raw
-  | (":", "stat") <- span (== ':') raw = Just CStatus
-  | [query]       <- words raw         = Just (CQuery (fromString query))
-  | otherwise = Nothing
+parseInput :: String -> Either InvalidInput Request
+parseInput s
+  | (":", "stat") <- span (== ':') s = Right CStatus
+  | (":", c) <- span (== ':') s      = Left (UnknownCommand c)
+  | [query] <- words s               = Right (CQuery (fromString query))
+  | otherwise                       = Left (InvalidQuery s)
+
+data InvalidInput =
+    InvalidQuery String
+  | UnknownCommand String
+    deriving (Show, Eq)
