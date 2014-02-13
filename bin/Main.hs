@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 module Main (main) where
 
 import Data.Version (showVersion)
@@ -13,22 +14,21 @@ import Paths_pakej (version)
 
 main :: IO a
 main = do
-  as <- getArgs
-  p  <- program
-  case as of
-    ["--recompile", s] -> recompilePakej (return s) p
-    ["--recompile"]    -> recompilePakej source p
-    _                  -> runPakej p as
+  args <- getArgs
+  name <- program
+  case args of
+    "--recompile" : args -> recompilePakej name args
+    _                    -> runPakej name args
 
 -- | Run pakej executable with the specified arguments
 runPakej :: FilePath -> [String] -> IO a
 runPakej path args = executeFile path False args Nothing
 
 -- | Recompile pakej sources and place the result somewhere
-recompilePakej :: IO FilePath -> FilePath -> IO a
-recompilePakej src dst = do
-  s <- src
-  executeFile "ghc" True [s, "-o", dst, "-O", "-threaded"] Nothing
+recompilePakej :: FilePath -> [String] -> IO a
+recompilePakej dst args = do
+  s <- source
+  executeFile "ghc" True ([s, "-o", dst, "-O", "-threaded"] ++ args) Nothing
 
 -- | ~/.pakej/pakej-x86_64-linux
 program :: IO FilePath
