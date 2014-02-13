@@ -1,4 +1,4 @@
-Pakej
+☞ Pakej ☜
 =====
 [![Build Status](https://secure.travis-ci.org/supki/pakej.png?branch=master)](https://travis-ci.org/supki/pakej)
 
