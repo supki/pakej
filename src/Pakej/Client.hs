@@ -3,14 +3,19 @@ module Pakej.Client
   , repl
   ) where
 
+import           Control.Concurrent (myThreadId)
 import           Control.Monad
-import           Control.Exception (bracket)
+import           Control.Exception (bracket, catches)
+import           Control.Exception.Lens
 import           Data.String (fromString)
 import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.IO as Text
 import           Network
 import           System.Exit (exitFailure)
+import           System.Exit.Lens (_ExitSuccess)
 import           System.IO (Handle, hClose, hFlush, hPutStrLn, stdout, stderr)
+import           System.IO.Error.Lens (errorType, _EOF)
+import           System.Posix.Signals (installHandler, keyboardSignal, Handler(..))
 import           System.Timeout (timeout)
 import           Text.Printf (printf)
 
@@ -33,25 +38,40 @@ client host port query = do
 second :: Int
 second = 1000000
 
-repl :: HostName -> PortID -> IO ()
-repl host port = forever $ do
-  prompt msg
-  raw <- getLine
-  case parseQuery raw of
-    Just query -> do
-      res <- exchange host port query
-      case res of
-        Nothing ->
-          hPutStrLn stderr "*** Pakej did not respond"
-        Just (Left e) ->
-          hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
-        Just (Right (DQuery response)) ->
-          Text.putStrLn response
-        Just (Right (DStatus commands)) ->
-          Text.putStrLn (Text.unwords commands)
-    Nothing ->
-      hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
+repl :: HostName -> PortID -> IO a
+repl host port = do
+  signalHandlers
+  forever $ do
+    prompt msg
+    raw <- getLine
+    case parseQuery raw of
+      Just query -> do
+        res <- exchange host port query
+        case res of
+          Nothing ->
+            hPutStrLn stderr "*** Pakej did not respond"
+          Just (Left e) ->
+            hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
+          Just (Right (DQuery response)) ->
+            Text.putStrLn response
+          Just (Right (DStatus commands)) ->
+            Text.putStrLn (Text.unwords commands)
+      Nothing ->
+        hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
+   `catches`
+    [ handler_ (_IOException.errorType._EOF) $ do
+        putStrLn "\nLeaving Pakej alone."
+        throwingM _ExitSuccess ()
+    , handler_ _UserInterrupt $
+        putStr "\n"
+    ]
  where msg = printf "pakej %s:%s >>> " host (prettyPort port)
+
+-- | Allow user to press ^C twice without REPL dying because of the default SIGINT handler
+signalHandlers :: IO ()
+signalHandlers = void $ do
+  tid <- myThreadId
+  installHandler keyboardSignal (Catch (throwingTo tid _UserInterrupt ())) Nothing
 
 -- | Send the query to the Pakej instance
 --
