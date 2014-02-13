@@ -12,6 +12,7 @@ import           Network
 import           System.Exit (exitFailure)
 import           System.IO (Handle, hClose, hFlush, hPutStrLn, stdout, stderr)
 import           System.Timeout (timeout)
+import           Text.Printf (printf)
 
 import           Pakej.Communication
 
@@ -36,12 +37,12 @@ second :: Int
 second = 1000000
 
 repl :: HostName -> PortID -> IO ()
-repl n p = forever $ do
-  prompt ">>> "
+repl host port = forever $ do
+  prompt msg
   raw <- getLine
   case parseCommand raw of
     Just command ->
-      connect n p $ \h -> do
+      connect host port $ \h -> do
         send h command
         res <- timeout (5 * second) (recv h)
         case res of
@@ -55,6 +56,13 @@ repl n p = forever $ do
             Text.putStrLn (Text.unwords commands)
     Nothing ->
       hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
+ where msg = printf "pakej %s:%s >>> " host (prettyPort port)
+
+-- | Pretty print the port to use in prompt message
+prettyPort :: PortID -> String
+prettyPort (PortNumber n) = show n
+prettyPort (Service s)    = s
+prettyPort (UnixSocket s) = s
 
 connect :: HostName -> PortID -> (Handle -> IO ()) -> IO ()
 connect n p = bracket (connectTo n p) hClose
