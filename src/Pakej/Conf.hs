@@ -117,8 +117,11 @@ parser sock = info (helper <*> go) fullDesc
       ]
 
   ghostParser = empty
-     <* switch (long "recompile" <> help "recompile pakej executable")
-     <* many (argument Just (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
+     <* asum
+      [ switch (long "recompile" <> help "recompile pakej executable")
+        <* many (argument Just (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
+      , switch (long "init" <> help "initialize pakej")
+      ]
 
   port = fmap (PortNumber . fromInteger) . option
   unix = fmap UnixSocket . strOption

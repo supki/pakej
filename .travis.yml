@@ -12,3 +12,5 @@ script:
     - cabal install --enable-tests
     - ghc -O example/Main.hs
     - ghc -O .dotfiles/core/pakej.hs
+    - pakej --init
+    - pakej --recompile

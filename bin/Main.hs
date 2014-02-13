@@ -2,33 +2,42 @@
 module Main (main) where
 
 import Data.Version (showVersion)
-import System.Directory (getAppUserDataDirectory)
+import System.Directory (copyFile, createDirectoryIfMissing, getAppUserDataDirectory)
 import System.Environment (getArgs)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeDirectory)
 import System.Info (arch, os)
 import System.Posix.Process (executeFile)
 import Text.Printf (printf)
 
-import Paths_pakej (version)
+import Paths_pakej (version, getDataFileName)
 
 
-main :: IO a
+main :: IO ()
 main = do
   args <- getArgs
   name <- program
   case args of
+    ["--init"]           -> initPakej
     "--recompile" : args -> recompilePakej name args
     _                    -> runPakej name args
 
--- | Run pakej executable with the specified arguments
-runPakej :: FilePath -> [String] -> IO a
-runPakej path args = executeFile path False args Nothing
+-- | Create Pakej app directory and copy pakej.hs template over
+initPakej :: IO ()
+initPakej = do
+  s <- source
+  createDirectoryIfMissing True (takeDirectory s)
+  t <- getDataFileName "data/pakej.hs"
+  copyFile t s
 
 -- | Recompile pakej sources and place the result somewhere
 recompilePakej :: FilePath -> [String] -> IO a
 recompilePakej dst args = do
   s <- source
   executeFile "ghc" True ([s, "-o", dst, "-O", "-threaded"] ++ args) Nothing
+
+-- | Run pakej executable with the specified arguments
+runPakej :: FilePath -> [String] -> IO a
+runPakej path args = executeFile path False args Nothing
 
 -- | ~/.pakej/pakej-x86_64-linux
 program :: IO FilePath

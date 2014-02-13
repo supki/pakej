@@ -1,10 +1,11 @@
 {-# LANGUAGE DefaultSignatures #-}
 -- | Client-Daemon communication
 module Pakej.Communication
-  ( -- * Communication
-    send, recv
-    -- * Commands
-  , Communicate, Request(..), Response(..)
+  ( communicate
+  , Send(..)
+  , Recv(..)
+  , Request(..)
+  , Response(..)
   ) where
 
 import           Control.Applicative
@@ -19,17 +20,24 @@ import           System.IO (Handle)
 import           Text.Printf (printf)
 
 
-class Communicate m where
+class Send m where
   send :: Handle -> m -> IO ()
   default send :: Serialize m => Handle -> m -> IO ()
   send h = ByteString.hPut h . encodeLazy
 
+instance Send Request
+instance Send Response
+
+class Recv m where
   recv :: Handle -> IO (Either String m)
   default recv :: Serialize m => Handle -> IO (Either String m)
   recv = evaluate <=< fmap decodeLazy . ByteString.hGetContents
 
-instance Communicate Request
-instance Communicate Response
+instance Recv Request
+instance Recv Response
+
+communicate :: (Send a, Recv b) => a -> Handle -> IO (Either String b)
+communicate a h = send h a >> recv h
 
 
 data Request =

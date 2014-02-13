@@ -74,11 +74,8 @@ signalHandlers = void $ do
 --
 --   * @'Nothing'@ means Pakej did not respond in 5 second timeout
 --   * @'Left' e@ means Pakej did respond with garbage @e@
-exchange :: (Communicate a, Communicate b) => HostName -> PortID -> a -> IO (Maybe (Either String b))
-exchange host port command =
-  timeout (5 * second) . connect host port $ \h -> do
-    send h command
-    recv h
+exchange :: (Send a, Recv b) => HostName -> PortID -> a -> IO (Maybe (Either String b))
+exchange host port command = timeout (5 * second) . connect host port $ communicate command
  where second = 1000000
 
 -- | Pretty print the port to use in prompt message
