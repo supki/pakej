@@ -2,14 +2,14 @@
 {-# LANGUAGE GADTs #-}
 module Pakej.Daemon (daemon) where
 
--- import           Control.Applicative
 import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (bracket)
 import           Control.Monad (forM_, forever)
-import           Control.Monad.Trans.Writer (WriterT(..), tell)
+import           Control.Monad.Trans.Writer (WriterT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
 import           Data.IORef
+import           Data.Monoid (Endo(..))
 import qualified Data.Map as Map
 import           Data.Map (Map)
 import           Data.Text.Lazy (Text)
@@ -76,10 +76,8 @@ worker
 worker ref w = step w Map.empty clockSession
  where
   step w' m' session' = do
-    ((_, w'', session''), m'') <- runWriterT $ do
-      res <- stepSession w' session' defaultConfig
-      tell m'
-      return res
+    ((_, w'', session''), f) <- runWriterT (stepSession w' session' defaultConfig)
+    let m'' = appEndo f m'
     liftIO $ do
       atomicWriteIORef ref m''
       threadDelay 200000

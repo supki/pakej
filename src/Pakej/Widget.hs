@@ -34,6 +34,7 @@ import           Data.IORef (IORef, newIORef, readIORef, atomicWriteIORef)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe (catMaybes)
+import           Data.Monoid (Endo(..))
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import           Data.Traversable (Traversable, mapM)
@@ -43,7 +44,7 @@ import           System.Exit (ExitCode(..))
 
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
-type Widget m l v = Wire PakejException (WriterT (Map l (Access v)) m)
+type Widget m l v = Wire PakejException (WriterT (Endo (Map l (Access v))) m)
 
 -- | Public results are available everywhere, but the private ones are only available
 -- for local queries (meaning queries to the local UNIX socket Pakej's listening)
@@ -63,7 +64,7 @@ private = store Private
 -- | Store the 'Widget''s result under the specified label
 store :: (Ord l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
 store f l = mkFixM $ \_dt v -> do
-  tell (Map.singleton l (f v))
+  tell (Endo (Map.insert l (f v)))
   return (Right v)
 
 -- | Aggregate all successful 'Widget's' results
