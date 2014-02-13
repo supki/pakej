@@ -41,19 +41,19 @@ repl host port = forever $ do
   prompt msg
   raw <- getLine
   case parseCommand raw of
-    Just command ->
-      connect host port $ \h -> do
+    Just command -> do
+      res <- timeout (5 * second) . connect host port $ \h -> do
         send h command
-        res <- timeout (5 * second) (recv h)
-        case res of
-          Nothing ->
-            hPutStrLn stderr "*** Pakej did not respond"
-          Just (Left e) ->
-            hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
-          Just (Right (DQuery response)) ->
-            Text.putStrLn response
-          Just (Right (DStatus commands)) ->
-            Text.putStrLn (Text.unwords commands)
+        recv h
+      case res of
+        Nothing ->
+          hPutStrLn stderr "*** Pakej did not respond"
+        Just (Left e) ->
+          hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
+        Just (Right (DQuery response)) ->
+          Text.putStrLn response
+        Just (Right (DStatus commands)) ->
+          Text.putStrLn (Text.unwords commands)
     Nothing ->
       hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
  where msg = printf "pakej %s:%s >>> " host (prettyPort port)
@@ -64,7 +64,7 @@ prettyPort (PortNumber n) = show n
 prettyPort (Service s)    = s
 prettyPort (UnixSocket s) = s
 
-connect :: HostName -> PortID -> (Handle -> IO ()) -> IO ()
+connect :: HostName -> PortID -> (Handle -> IO a) -> IO a
 connect n p = bracket (connectTo n p) hClose
 
 prompt :: String ->  IO ()
