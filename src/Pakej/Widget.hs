@@ -3,7 +3,7 @@
 module Pakej.Widget
   ( Widget
     -- * Store the result
-  , Label(..)
+  , Access(..)
   , public
   , private
     -- * Combine the results
@@ -29,7 +29,7 @@ import           Control.Monad (liftM)
 import           Control.Monad.Trans.Writer (WriterT, tell)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (second, loop)
-import           Data.Function (fix, on)
+import           Data.Function (fix)
 import           Data.IORef (IORef, newIORef, readIORef, atomicWriteIORef)
 import           Data.Map (Map)
 import qualified Data.Map as Map
@@ -43,37 +43,27 @@ import           System.Exit (ExitCode(..))
 
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
-type Widget m l v = Wire PakejException (WriterT (Map (Label l) v) m)
+type Widget m l v = Wire PakejException (WriterT (Map l (Access v)) m)
 
--- | Label is something 'Widget''s result can be addressed by; typically, it's 'Text'
---
--- Public results are available everywhere, but the private ones are only available
+-- | Public results are available everywhere, but the private ones are only available
 -- for local queries (meaning queries to the local UNIX socket Pakej's listening)
-data Label t =
-    Public  { unLabel :: t }
-  | Private { unLabel :: t }
-
-instance Show t => Show (Label t) where
-  show = show . unLabel
-
-instance Eq t => Eq (Label t) where
-  (==) = (==) `on` unLabel
-
-instance Ord t => Ord (Label t) where
-  compare = compare `on` unLabel
+data Access t =
+    Public  { unAccess :: t }
+  | Private { unAccess :: t }
+    deriving (Show, Eq)
 
 -- | Store the 'Widget''s result under the specified label publicly
 public :: (Ord l, Monad m) => l -> Widget m l v v v
-public = store . Public
+public = store Public
 
 -- | Store the 'Widget''s result under the specified label privately
 private :: (Ord l, Monad m) => l -> Widget m l v v v
-private = store . Private
+private = store Private
 
 -- | Store the 'Widget''s result under the specified label
-store :: (Ord l, Monad m) => Label l -> Widget m l v v v
-store l = mkFixM $ \_dt v -> do
-  tell (Map.singleton l v)
+store :: (Ord l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
+store f l = mkFixM $ \_dt v -> do
+  tell (Map.singleton l (f v))
   return (Right v)
 
 -- | Aggregate all successful 'Widget's' results

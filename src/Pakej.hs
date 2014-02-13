@@ -5,7 +5,7 @@ module Pakej
     -- * Widget
   , Widget, (.), id
     -- ** Store the result
-  , Label(..)
+  , Access(..)
   , public
   , private
     -- ** Combine the results

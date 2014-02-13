@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 module Pakej.Daemon (daemon) where
 
-import           Control.Applicative
+-- import           Control.Applicative
 import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (bracket)
 import           Control.Monad (forM_, forever)
@@ -35,7 +35,7 @@ daemon ps t w =
     forever $
       threadDelay 1000000
 
-listen :: IORef (Map (Label Text) Text) -> PortID -> IO ThreadId
+listen :: IORef (Map Text (Access Text)) -> PortID -> IO ThreadId
 listen ref p = forkIO $
   bracket (preparePort p >> listenOn p) sClose $ \s ->
     forever $
@@ -51,27 +51,28 @@ listen ref p = forkIO $
         threadDelay 100000
         print e
 
-response :: Map (Label Text) Text -> PortID -> Request -> Response
+response :: Map Text (Access Text) -> PortID -> Request -> Response
 response m p = \case
-  CQuery key -> case (lookupLabel key m, p) of
-    (Just (Private _, _), PortNumber _) ->
+  CQuery key -> case (Map.lookup key m, p) of
+    (Just (Private _), PortNumber _) ->
       DQuery Nothing
-    (Just (_, r), _) -> do
-      DQuery (Just (Text.replace (Text.pack "\n") (Text.pack "") r))
+    (Just r, _) -> do
+      DQuery (Just (Text.replace (Text.pack "\n") (Text.pack "") (unAccess r)))
     (Nothing, _) ->
       DQuery Nothing
   CStatus -> case p of
     PortNumber _ ->
-      DStatus [k | Public k <- Map.keys m]
+      DStatus [k | (k, Public _) <- Map.toList m]
     _ ->
-      DStatus (map unLabel (Map.keys m))
+      DStatus (Map.keys m)
 
 preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)
 preparePort _              = return (Right ())
 
 worker
-  :: (Show l, Ord l, Integral n, MonadIO m) => IORef (Map (Label l) v) -> Widget m l v (Config n) a -> m b
+  :: (Show l, Ord l, Integral n, MonadIO m)
+  => IORef (Map l (Access v)) -> Widget m l v (Config n) a -> m b
 worker ref w = step w Map.empty clockSession
  where
   step w' m' session' = do
@@ -83,7 +84,3 @@ worker ref w = step w Map.empty clockSession
       atomicWriteIORef ref m''
       threadDelay 200000
     step w'' m'' session''
-
-lookupLabel :: Ord l => l -> Map (Label l) v -> Maybe (Label l, v)
-lookupLabel l m = go (Public l) m <|> go (Private l) m
- where go l' = fmap (\x -> (l', x)) . Map.lookup l'

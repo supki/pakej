@@ -1,6 +1,6 @@
 module Pakej.Client
-  ( client
-  , repl
+  ( repl
+  , client
   ) where
 
 import           Control.Concurrent (myThreadId)
@@ -22,24 +22,6 @@ import           Text.Printf (printf)
 import           Pakej.Communication
 
 
-client :: HostName -> PortID -> Request -> IO ()
-client host port query = do
-  res <- exchange host port query
-  case res of
-    Nothing ->
-      exitFailure
-    Just (Left _) ->
-      exitFailure
-    Just (Right (DQuery Nothing)) ->
-      exitFailure
-    Just (Right (DQuery (Just response))) ->
-      Text.putStrLn response
-    Just (Right (DStatus commands)) ->
-      Text.putStrLn (Text.unwords commands)
-
-second :: Int
-second = 1000000
-
 repl :: HostName -> PortID -> IO a
 repl host port = do
   signalHandlers
@@ -56,10 +38,10 @@ repl host port = do
             hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
           Just (Right (DQuery response)) ->
             print response
-          Just (Right (DStatus commands)) ->
-            Text.putStrLn (Text.unwords commands)
+          Just (Right (DStatus response)) ->
+            print response
       Nothing ->
-        hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
+        hPutStrLn stderr ("*** Unknown command: " ++ show raw)
    `catches`
     [ handler_ (_IOException.errorType._EOF) $ do
         putStrLn "\nLeaving Pakej alone."
@@ -68,6 +50,17 @@ repl host port = do
         putStr "\n"
     ]
  where msg = printf "pakej %s:%s >>> " host (prettyPort port)
+
+client :: HostName -> PortID -> Request -> IO ()
+client host port query = do
+  res <- exchange host port query
+  case res of
+    Just (Right (DQuery (Just response))) ->
+      Text.putStrLn response
+    Just (Right (DStatus response)) ->
+      Text.putStrLn (Text.unwords response)
+    _ ->
+      exitFailure
 
 -- | Allow user to press ^C twice without REPL dying because of the default SIGINT handler
 signalHandlers :: IO ()
@@ -84,6 +77,7 @@ exchange host port command =
   timeout (5 * second) . connect host port $ \h -> do
     send h command
     recv h
+ where second = 1000000
 
 -- | Pretty print the port to use in prompt message
 prettyPort :: PortID -> String
