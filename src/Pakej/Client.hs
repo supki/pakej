@@ -18,11 +18,8 @@ import           Pakej.Communication
 
 
 client :: HostName -> PortID -> Request -> IO ()
-client n p command = do
-  res <- timeout (5 * second) $ do
-    h <- connectTo n p
-    send h command
-    recv h
+client host port query = do
+  res <- exchange host port query
   case res of
     Nothing ->
       exitFailure
@@ -40,11 +37,9 @@ repl :: HostName -> PortID -> IO ()
 repl host port = forever $ do
   prompt msg
   raw <- getLine
-  case parseCommand raw of
-    Just command -> do
-      res <- timeout (5 * second) . connect host port $ \h -> do
-        send h command
-        recv h
+  case parseQuery raw of
+    Just query -> do
+      res <- exchange host port query
       case res of
         Nothing ->
           hPutStrLn stderr "*** Pakej did not respond"
@@ -57,6 +52,16 @@ repl host port = forever $ do
     Nothing ->
       hPutStrLn stderr ("*** Unknown command: `" ++ raw ++ "'")
  where msg = printf "pakej %s:%s >>> " host (prettyPort port)
+
+-- | Send the query to the Pakej instance
+--
+--   * @'Nothing'@ means Pakej did not respond in 5 second timeout
+--   * @'Left' e@ means Pakej did respond with garbage @e@
+exchange :: (Communicate a, Communicate b) => HostName -> PortID -> a -> IO (Maybe (Either String b))
+exchange host port command =
+  timeout (5 * second) . connect host port $ \h -> do
+    send h command
+    recv h
 
 -- | Pretty print the port to use in prompt message
 prettyPort :: PortID -> String
@@ -72,8 +77,8 @@ prompt m = do
   putStr m
   hFlush stdout
 
-parseCommand :: String -> Maybe Request
-parseCommand raw
+parseQuery :: String -> Maybe Request
+parseQuery raw
   | (":", "stat") <- span (== ':') raw = Just CStatus
   | [query]       <- words raw         = Just (CQuery (fromString query))
   | otherwise = Nothing

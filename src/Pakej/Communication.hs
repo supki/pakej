@@ -4,7 +4,7 @@ module Pakej.Communication
   ( -- * Communication
     send, recv
     -- * Commands
-  , Request(..), Response(..)
+  , Communicate, Request(..), Response(..)
   ) where
 
 import           Control.Applicative
