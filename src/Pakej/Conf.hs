@@ -90,6 +90,7 @@ parser sock = info (helper <*> go) fullDesc
   go = asum
     [ fmap Left versionParser
     , fmap Right confParser
+    , ghostParser
     ]
 
   versionParser = flag' version (long "version" <> short 'v' <> help "print version information")
@@ -108,7 +109,6 @@ parser sock = info (helper <*> go) fullDesc
       , flag' Respect  (long "respect"  <> help "submit to running pakej (default)")
       , pure Respect
       ]
-    <* optional (switch (long "recompile" <> help "recompile pakej executable"))
     <*> asum
       [ flag' (Query CStatus) (long "stat" <> help "ask pakej instance what it has to show")
       , flag' Repl (long "repl" <> help "start a Repl session with the pakej instance")
@@ -116,7 +116,11 @@ parser sock = info (helper <*> go) fullDesc
       , pure Daemon
       ]
 
-  port = fmap (PortNumber . fromInteger). option
+  ghostParser = empty
+     <* switch (long "recompile" <> help "recompile pakej executable")
+     <* many (argument Just (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
+
+  port = fmap (PortNumber . fromInteger) . option
   unix = fmap UnixSocket . strOption
 
 -- | @\~\/.pakej\/%s@
