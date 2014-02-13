@@ -9,7 +9,6 @@ import           Control.Monad (forM_, forever)
 import           Control.Monad.Trans.Writer (WriterT(..), tell)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
-import           Data.Foldable (for_)
 import           Data.IORef
 import qualified Data.Map as Map
 import           Data.Map (Map)
@@ -45,27 +44,27 @@ listen ref p = forkIO $
         case k of
           Right query -> do
             m <- readIORef ref
-            for_ (response m p query) (send h)
+            send h (response m p query)
           Left _ ->
             return ()
        `catchIOError` \e -> do
         threadDelay 100000
         print e
 
-response :: Map (Label Text) Text -> PortID -> Request -> Maybe Response
+response :: Map (Label Text) Text -> PortID -> Request -> Response
 response m p = \case
   CQuery key -> case (lookupLabel key m, p) of
     (Just (Private _, _), PortNumber _) ->
-      Nothing
+      DQuery Nothing
     (Just (_, r), _) -> do
-      Just (DQuery (Text.replace (Text.pack "\n") (Text.pack "") r))
+      DQuery (Just (Text.replace (Text.pack "\n") (Text.pack "") r))
     (Nothing, _) ->
-      Nothing
+      DQuery Nothing
   CStatus -> case p of
     PortNumber _ ->
-      Just (DStatus [k | Public k <- Map.keys m])
+      DStatus [k | Public k <- Map.keys m]
     _ ->
-      Just (DStatus (map unLabel (Map.keys m)))
+      DStatus (map unLabel (Map.keys m))
 
 preparePort :: PortID -> IO (Either IOError ())
 preparePort (UnixSocket s) = tryIOError (removeFile s)

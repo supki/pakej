@@ -30,8 +30,12 @@ spec = do
         `through` _Left.to lines
 
   describe "Response" $ do
-    it "has working serialization for DResponse" $ do
-      let response = DQuery "ДМИТРИЙ МАЛИКОВ"
+    it "has working serialization for DResponse with payload" $ do
+      let response = DQuery (Just "ДМИТРИЙ МАЛИКОВ")
+      roundtrip response `shouldPreview` response `through` _Right
+
+    it "has working serialization for DResponse without payload" $ do
+      let response = DQuery Nothing
       roundtrip response `shouldPreview` response `through` _Right
 
     it "has working serialization for DStatus" $ do

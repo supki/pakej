@@ -14,6 +14,7 @@ import qualified Data.ByteString.Lazy as ByteString
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy.Encoding as Text
 import           Data.Serialize (Serialize(..), getWord8, putWord8, encodeLazy, decodeLazy)
+import           Data.Traversable (traverse)
 import           System.IO (Handle)
 import           Text.Printf (printf)
 
@@ -52,14 +53,14 @@ instance Serialize Request where
       _ -> fail (printf "Unknown Pakej.Command.Client value tag: %d" w)
 
 data Response =
-    DQuery Text
+    DQuery (Maybe Text)
   | DStatus [Text]
     deriving (Show, Eq)
 
 instance Serialize Response where
   put (DQuery t) = do
     putWord8 0
-    put (Text.encodeUtf8 t)
+    put (fmap Text.encodeUtf8 t)
   put (DStatus ts) = do
     putWord8 1
     put (map Text.encodeUtf8 ts)
@@ -67,9 +68,9 @@ instance Serialize Response where
     w <- getWord8
     case w of
       0 -> do
-        Right t <- Text.decodeUtf8' <$> get
+        Right t <- traverse Text.decodeUtf8' <$> get
         return (DQuery t)
       1 -> do
-        Right ts <- mapM Text.decodeUtf8' <$> get
+        Right ts <- traverse Text.decodeUtf8' <$> get
         return (DStatus ts)
       _ -> fail (printf "Unknown Pakej.Command.Daemon value tag: %d" w)

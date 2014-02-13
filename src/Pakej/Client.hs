@@ -30,7 +30,9 @@ client host port query = do
       exitFailure
     Just (Left _) ->
       exitFailure
-    Just (Right (DQuery response)) ->
+    Just (Right (DQuery Nothing)) ->
+      exitFailure
+    Just (Right (DQuery (Just response))) ->
       Text.putStrLn response
     Just (Right (DStatus commands)) ->
       Text.putStrLn (Text.unwords commands)
@@ -53,7 +55,7 @@ repl host port = do
           Just (Left e) ->
             hPutStrLn stderr ("*** Pakej responded with gibberish: " ++ e)
           Just (Right (DQuery response)) ->
-            Text.putStrLn response
+            print response
           Just (Right (DStatus commands)) ->
             Text.putStrLn (Text.unwords commands)
       Nothing ->
