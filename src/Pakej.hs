@@ -3,7 +3,7 @@ module Pakej
   ( -- * The main function
     pakej
     -- * Widget
-  , Widget, (.), id
+  , PakejWidget, Widget, (.), id
     -- ** Store the result
   , Access(..)
   , public
@@ -40,7 +40,7 @@ import Pakej.Daemon
 
 
 -- | Run Pakej with the provided 'Widget'
-pakej :: Integral n => Widget IO Text Text (Config n) a -> IO ()
+pakej :: PakejWidget a -> IO ()
 pakej ps = do
   c <- conf
   case c of

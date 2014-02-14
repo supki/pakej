@@ -1,6 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
-module Pakej.Daemon (daemon) where
+module Pakej.Daemon
+  ( PakejWidget
+  , daemon
+  ) where
 
 import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (bracket)
@@ -25,8 +28,10 @@ import           Pakej.Communication
 import           Pakej.Conf (Existing)
 import           Pakej.Daemon.Daemonize (daemonize)
 
+-- | A highly monomorphic 'Widget' type used by Pakej itself
+type PakejWidget = Widget IO Text Text (Config Integer)
 
-daemon :: Integral n => [PortID] -> Existing -> Widget IO Text Text (Config n) a -> IO b
+daemon :: [PortID] -> Existing -> PakejWidget a -> IO b
 daemon ps t w =
   daemonize t $ do
     ref <- newIORef Map.empty
