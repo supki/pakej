@@ -11,6 +11,7 @@ module Pakej.Widget
     -- * Construct
   , text
   , system
+  , constant
   , widget
     -- * Configure
   , Config

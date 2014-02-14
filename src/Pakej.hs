@@ -13,6 +13,7 @@ module Pakej
     -- ** Construct
   , text
   , system
+  , constant
   , widget
     -- ** Configure
   , Config
