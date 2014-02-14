@@ -1,6 +1,8 @@
 module Pakej.Client
   ( repl
-  , client
+  , oneshot
+  , query
+  , exchange
   ) where
 
 import           Control.Concurrent (myThreadId)
@@ -8,6 +10,7 @@ import           Control.Monad
 import           Control.Exception (bracket, catches)
 import           Control.Exception.Lens
 import           Data.String (fromString)
+import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.IO as Text
 import           Network
@@ -20,6 +23,8 @@ import           System.Timeout (timeout)
 import           Text.Printf (printf)
 
 import           Pakej.Communication
+import           Pakej.Daemon (PakejWidget)
+import           Pakej.Widget (text)
 
 
 repl :: HostName -> PortID -> IO a
@@ -29,8 +34,8 @@ repl host port = do
     prompt msg
     input <- getLine
     case parseInput input of
-      Right query -> do
-        res <- exchange host port query
+      Right q -> do
+        res <- exchange host port q
         case res of
           Nothing ->
             hPutStrLn stderr "*** Pakej did not respond"
@@ -40,8 +45,8 @@ repl host port = do
             print response
           Just (Right (DStatus response)) ->
             print response
-      Left (InvalidQuery query) ->
-        hPutStrLn stderr ("*** Invalid query: " ++ show query)
+      Left (InvalidQuery q) ->
+        hPutStrLn stderr ("*** Invalid query: " ++ show q)
       Left (UnknownCommand command) ->
         hPutStrLn stderr ("*** Unknown command: " ++ show command)
    `catches`
@@ -53,9 +58,9 @@ repl host port = do
     ]
  where msg = printf "pakej %s:%s >>> " host (prettyPort port)
 
-client :: HostName -> PortID -> Request -> IO ()
-client host port query = do
-  res <- exchange host port query
+oneshot :: HostName -> PortID -> Request -> IO ()
+oneshot host port q = do
+  res <- exchange host port q
   case res of
     Just (Right (DQuery (Just response))) ->
       Text.putStrLn response
@@ -63,6 +68,13 @@ client host port query = do
       Text.putStrLn (Text.unwords response)
     _ ->
       exitFailure
+
+query :: HostName -> PortID -> Text -> PakejWidget Text
+query h p q = text $ do
+  res <- exchange h p (CQuery q)
+  case res of
+    Just (Right (DQuery (Just t))) -> return t
+    _ -> exitFailure
 
 -- | Allow user to press ^C twice without REPL dying because of the default SIGINT handler
 signalHandlers :: IO ()
@@ -96,7 +108,7 @@ parseInput :: String -> Either InvalidInput Request
 parseInput s
   | (":", "stat") <- span (== ':') s = Right CStatus
   | (":", c) <- span (== ':') s      = Left (UnknownCommand c)
-  | [query] <- words s               = Right (CQuery (fromString query))
+  | [q] <- words s                  = Right (CQuery (fromString q))
   | otherwise                       = Left (InvalidQuery s)
 
 data InvalidInput =

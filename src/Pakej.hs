@@ -15,6 +15,7 @@ module Pakej
   , system
   , constant
   , widget
+  , query
     -- ** Configure
   , Config
   , defaultConfig
@@ -28,15 +29,14 @@ module Pakej
 
 import Control.Category ((.), id)
 import Control.Lens ((^?!), view, folded)
-import Data.Text.Lazy (Text)
 import Data.Version (showVersion)
 import Prelude hiding ((.), id)
 import Text.Printf (printf)
 
-import Pakej.Widget
 import Pakej.Client
 import Pakej.Conf
 import Pakej.Daemon
+import Pakej.Widget
 
 
 -- | Run Pakej with the provided 'Widget'
@@ -47,7 +47,7 @@ pakej ps = do
     Left  v -> printf "pakej version %s\n" (showVersion v)
     Right x -> case view mode x of
       Query q ->
-        client (view host x) (x ^?! addrs.folded) q
+        oneshot (view host x) (x ^?! addrs.folded) q
       Repl ->
         repl (view host x) (x ^?! addrs.folded)
       Daemon ->
