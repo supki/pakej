@@ -55,7 +55,7 @@ that means Pakej has __not__ been installed successfully!
 ### What this tutorial is all about?
 
 This tutorial walks through the process of configuring Pakej. We start with nothing and
-end up with a nice status bar for [tmux][tmux:homepage]. I expect some kind of familiarity
+end up with a nice status bar for tmux. I expect some kind of familiarity
 with the command line, but you don't need to install tmux if you don't like it—there will
 be screen captures illustrating our progress.
 
@@ -151,7 +151,7 @@ set-option -g status-right '#(pakej datetime)'
 
 ![Yay!](asset/datetime.png)
 
-You can find full source code for this example in [`example/datetime.hs`][example:datetime].
+You can find full source code for this example in [`example/datetime.hs`](example/datetime.hs).
 
 ### Aggregation
 
@@ -205,7 +205,7 @@ set-option -g status-right '#(pakej status)'
 
 ![Hoorah!](asset/aggregation.png)
 
-You can find full source code for this example in [`example/aggregation.hs`][example:aggregation].
+You can find full source code for this example in [`example/aggregation.hs`](example/aggregation.hs).
 
 ### Parting thoughts
 
@@ -221,6 +221,4 @@ API documentation
   [xmobar:homepage]: http://projects.haskell.org/xmobar
   [hackage:time]: https://hackage.haskell.org/package/time
   [hackage:old-locale]: https://hackage.haskell.org/package/old-locale
-  [example:datetime]: https://github.com/supki/pakej/example/datetime.hs
-  [example:aggregation]: https://github.com/supki/pakej/example/aggregation.hs
   [pakej:haddocks]: http://supki.github.io/pakej/
