@@ -10,7 +10,8 @@ before_install:
 
 script:
     - cabal install --enable-tests
-    - ghc -O example/Main.hs
+    - ghc -O example/datetime.hs
+    - ghc -O example/aggregation.hs
     - ghc -O .dotfiles/core/pakej.hs
     - pakej --init
     - pakej --recompile
