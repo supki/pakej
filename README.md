@@ -3,7 +3,7 @@
 [![Build Status](https://secure.travis-ci.org/supki/pakej.png?branch=master)](https://travis-ci.org/supki/pakej)
 
 Pakej is a status bar daemon. It does not actually draw any status bars, only executes
-I/O actions in the background and stores their results.  This is most useful together
+I/O actions in the background and stores their results. This is most useful together
 with tools like [tmux][tmux:homepage] or [xmobar][xmobar:homepage].
 
 Installation
@@ -79,9 +79,12 @@ and even run:
 
 ```
 $ pakej
+pakej 0.2.0.0, listening on
+   - localhost:/home/maksenov/.pakej/pakej.sock
+$
 ```
 
-It's a daemon, so you won't see any useful output right away, but you can look up the
+It's a daemon, so it releases the console right away, but you can look up the
 pakej process with tools like `ps` or `pgrep`, say.
 
 Let's make our first widget!

@@ -19,27 +19,39 @@ import qualified Data.Map as Map
 import           Data.Map (Map)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
+import           Data.Version (showVersion)
 import           Network
 import           Prelude hiding ((.), id, fail)
 import           System.Directory (removeFile)
 import           System.IO (hClose)
 import           System.IO.Error (catchIOError, tryIOError)
+import           Text.Printf (printf)
 
 import           Pakej.Widget
 import           Pakej.Communication
 import           Pakej.Conf (Conf, addrs)
 import           Pakej.Daemon.Daemonize (daemonize)
 
+import           Paths_pakej (version)
+
 -- | A highly monomorphic 'Widget' type used by Pakej itself
 type PakejWidget = Widget IO Text Text (Config Integer)
 
 daemon :: Conf -> PakejWidget a -> IO ()
-daemon conf w =
+daemon conf w = do
+  greeting conf
   daemonize conf $ do
     ref <- newIORef Map.empty
     forkIO (worker ref w)
     locks <- mapM (listen ref) (view addrs conf)
     mapM_ acquireLock locks
+
+greeting :: Conf -> IO ()
+greeting conf = do
+  printf "pakej %s, listening on:\n" (showVersion version)
+  mapM_ (putStrLn . pretty)  (view addrs conf)
+ where
+  pretty p = "  - " ++ site "localhost" p
 
 listen :: IORef (Map Text (Access Text)) -> PortID -> IO Lock
 listen ref p = do

@@ -56,7 +56,7 @@ repl host port = do
     , handler_ _UserInterrupt $
         putStr "\n"
     ]
- where msg = printf "pakej %s:%s >>> " host (prettyPort port)
+ where msg = printf "pakej %s >>> " (site host port)
 
 oneshot :: HostName -> PortID -> Request -> IO ()
 oneshot host port q = do
@@ -89,12 +89,6 @@ signalHandlers = void $ do
 exchange :: (Send a, Recv b) => HostName -> PortID -> a -> IO (Maybe (Either String b))
 exchange host port command = timeout (5 * second) . connect host port $ communicate command
  where second = 1000000
-
--- | Pretty print the port to use in prompt message
-prettyPort :: PortID -> String
-prettyPort (PortNumber n) = show n
-prettyPort (Service s)    = s
-prettyPort (UnixSocket s) = s
 
 connect :: HostName -> PortID -> (Handle -> IO a) -> IO a
 connect n p = bracket (connectTo n p) hClose
