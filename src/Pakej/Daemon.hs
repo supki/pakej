@@ -5,10 +5,11 @@ module Pakej.Daemon
   , daemon
   ) where
 
-import           Control.Concurrent (ThreadId, forkIO, threadDelay)
+import           Control.Concurrent (forkIO, forkFinally, threadDelay)
+import           Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 import           Control.Exception (bracket)
 import           Control.Lens
-import           Control.Monad (forM_, forever)
+import           Control.Monad (forever)
 import           Control.Monad.Trans.Writer (WriterT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
@@ -32,30 +33,44 @@ import           Pakej.Daemon.Daemonize (daemonize)
 -- | A highly monomorphic 'Widget' type used by Pakej itself
 type PakejWidget = Widget IO Text Text (Config Integer)
 
-daemon :: Conf -> PakejWidget a -> IO b
+daemon :: Conf -> PakejWidget a -> IO ()
 daemon conf w =
   daemonize conf $ do
     ref <- newIORef Map.empty
     forkIO (worker ref w)
-    forM_ (view addrs conf) (listen ref)
-    forever $
-      threadDelay 1000000
+    locks <- mapM (listen ref) (view addrs conf)
+    mapM_ acquireLock locks
 
-listen :: IORef (Map Text (Access Text)) -> PortID -> IO ThreadId
-listen ref p = forkIO $
-  bracket (preparePort p >> listenOn p) sClose $ \s ->
-    forever $
-      bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
-        k <- recv h
-        case k of
-          Right query -> do
-            m <- readIORef ref
-            send h (response m p query)
-          Left _ ->
-            return ()
-       `catchIOError` \e -> do
-        threadDelay 100000
-        print e
+listen :: IORef (Map Text (Access Text)) -> PortID -> IO Lock
+listen ref p = do
+  lock <- newLock
+  forkFinally listenLoop (\_ -> releaseLock lock)
+  return lock
+ where
+   listenLoop = bracket (preparePort p >> listenOn p) sClose $ \s ->
+     forever $
+       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
+         k <- recv h
+         case k of
+           Right query -> do
+             m <- readIORef ref
+             send h (response m p query)
+           Left _ ->
+             return ()
+        `catchIOError` \e -> do
+         threadDelay 100000
+         print e
+
+newtype Lock = Lock { unLock :: MVar () }
+
+newLock :: IO Lock
+newLock = Lock <$> newEmptyMVar
+
+acquireLock :: Lock -> IO ()
+acquireLock = takeMVar . unLock
+
+releaseLock :: Lock -> IO ()
+releaseLock (Lock var) = putMVar var ()
 
 response :: Map Text (Access Text) -> PortID -> Request -> Response
 response m p = \case
