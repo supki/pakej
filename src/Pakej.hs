@@ -51,4 +51,4 @@ pakej ps = do
       Repl ->
         repl (view host x) (x ^?! addrs.folded)
       Daemon ->
-        daemon (view addrs x) (view prev x) ps
+        daemon x ps

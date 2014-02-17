@@ -7,6 +7,7 @@ module Pakej.Daemon
 
 import           Control.Concurrent (ThreadId, forkIO, threadDelay)
 import           Control.Exception (bracket)
+import           Control.Lens
 import           Control.Monad (forM_, forever)
 import           Control.Monad.Trans.Writer (WriterT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
@@ -25,18 +26,18 @@ import           System.IO.Error (catchIOError, tryIOError)
 
 import           Pakej.Widget
 import           Pakej.Communication
-import           Pakej.Conf (Existing)
+import           Pakej.Conf (Conf, addrs)
 import           Pakej.Daemon.Daemonize (daemonize)
 
 -- | A highly monomorphic 'Widget' type used by Pakej itself
 type PakejWidget = Widget IO Text Text (Config Integer)
 
-daemon :: [PortID] -> Existing -> PakejWidget a -> IO b
-daemon ps t w =
-  daemonize t $ do
+daemon :: Conf -> PakejWidget a -> IO b
+daemon conf w =
+  daemonize conf $ do
     ref <- newIORef Map.empty
     forkIO (worker ref w)
-    forM_ ps (listen ref)
+    forM_ (view addrs conf) (listen ref)
     forever $
       threadDelay 1000000
 

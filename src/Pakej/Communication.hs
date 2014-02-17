@@ -39,7 +39,6 @@ instance Recv Response
 communicate :: (Send a, Recv b) => a -> Handle -> IO (Either String b)
 communicate a h = send h a >> recv h
 
-
 data Request =
     CQuery Text
   | CStatus

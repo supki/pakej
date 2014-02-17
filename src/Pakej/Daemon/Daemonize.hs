@@ -2,6 +2,7 @@
 module Pakej.Daemon.Daemonize (daemonize) where
 
 import Control.Applicative
+import Control.Lens
 import Control.Monad
 import System.Directory (getAppUserDataDirectory)
 import System.Exit (exitFailure, exitSuccess)
@@ -12,23 +13,29 @@ import System.Posix hiding (Ignore)
 import Text.Read (readMaybe)
 import Text.Printf (printf)
 
-import Pakej.Conf (Existing(..))
+import Pakej.Conf (Conf, Policy(..), policy, foreground)
+
+{-# ANN module "HLint: ignore Use if" #-}
 
 
 -- | Forks, prepares child process to serve as a daemon, then exits
 -- with @EXIT_SUCCESS@
-daemonize :: Existing -> IO a -> IO b
-daemonize prev ioa = do
-  forkProcess (void (prepareChild prev *> ioa))
-  exitSuccess
+daemonize :: Conf -> IO a -> IO a
+daemonize conf ioa =
+  case view foreground conf of
+    False -> do
+      forkProcess (void (prepareChild conf *> ioa))
+      exitSuccess
+    True ->
+      ioa
 
 -- | Change the working directory to @\/@, set the fmask to @027@,
 -- close @stdin@, @stdout@, and @stderr@, create Unix socket file
-prepareChild :: Existing -> IO ()
-prepareChild prev = do
+prepareChild :: Conf -> IO ()
+prepareChild conf = do
   changeWorkingDirectory "/"
   pidfile <- appDirectory "pakej" "pakej.pid"
-  killPakej pidfile prev
+  killPakej pidfile conf
   savePakej pidfile
   setFileCreationMask 0o027
   close [stdInput, stdOutput, stdError]
@@ -52,11 +59,11 @@ close fds = do
 --   * The process with the PID stored in the pidfile does not exist
 --
 --   * Pakej couldn't terminate the process with the stored PID
-killPakej :: FilePath -> Existing -> IO (Either IOError ())
-killPakej pidfile prev = tryIOError $ do
+killPakej :: FilePath -> Conf -> IO (Either IOError ())
+killPakej pidfile conf = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
   pingProcess pid
-  case prev of
+  case view policy conf of
     Replace -> terminateProcess pid
     Respect -> die (printf "Can't proceed, found running instance: %s" (show pid))
 
