@@ -1,7 +1,10 @@
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Pakej 'Widget's
 module Pakej.Widget
-  ( Widget
+  ( Widget(..)
+  , fromWire
     -- * Store the result
   , Access(..)
   , public
@@ -43,9 +46,18 @@ import           Data.Typeable (Typeable, cast)
 import           Prelude hiding ((.), id, mapM)
 import           System.Exit (ExitCode(..))
 
+{-# ANN module "HLint: ignore Eta reduce" #-}
+
+
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
-type Widget m l v = Wire PakejException (WriterT (Endo (Map l (Access v))) m)
+newtype Widget m l v a b = Widget
+ { unWidget :: Wire PakejException (WriterT (Endo (Map l (Access v))) m) a b
+ } deriving (Category, Functor, Applicative, Profunctor)
+
+-- | Get a widget from an abstract 'Wire'
+fromWire :: (forall e m. Wire e m a b) -> Widget n l v a b
+fromWire w = Widget w
 
 -- | Public results are available everywhere, but the private ones are only available
 -- for local queries (meaning queries to the local UNIX socket Pakej's listening)
@@ -64,7 +76,7 @@ private = store Private
 
 -- | Store the 'Widget''s result under the specified label
 store :: (Ord l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
-store f l = mkFixM $ \_dt v -> do
+store f l = Widget . mkFixM $ \_dt v -> do
   tell (Endo (Map.insert l (f v)))
   return (Right v)
 
@@ -72,8 +84,8 @@ store f l = mkFixM $ \_dt v -> do
 --
 -- Failed 'Widget's' results are skipped so they do not clutter the resulting value
 aggregate :: (Ord l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
-aggregate xs = go . (multitry xs &&& id)
- where go = mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
+aggregate xs = go . Widget (multitry (map unWidget xs) &&& id)
+ where go = Widget . mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
          let s' = zipWith (<|>) vs s
              v  = Text.intercalate (separator conf) (catMaybes s')
          return (Right v, s')
@@ -123,12 +135,12 @@ constant io = widget undefined (const io)
 
 -- | Construct a 'Widget' from the /iterating/ IO action
 widget :: (Ord l, MonadIO m, Integral n) => a -> (a -> IO a) -> Widget m l v (Config n) a
-widget s io = mkGen $ \_dt n -> do
+widget s io = Widget . mkGen $ \_dt n -> do
   ref <- liftIO $ do
     ref <- newIORef Nothing
     forkIO (go (timeout n) ref s)
     return ref
-  return (Left PakejEmptyWidgetException, final ref)
+  return (Left PakejEmptyWidgetException, unWidget (final ref))
  where
   go n ref = fix $ \loop a -> do
     v <- handlePakejException (\_ -> return a) $ do
@@ -142,7 +154,7 @@ widget s io = mkGen $ \_dt n -> do
 --
 -- /Note/: that's basically an internal function, but maybe it'll be useful for someone
 final :: (Ord l, MonadIO m) => IORef (Maybe a) -> Widget m l v x a
-final ref = mkFixM $ \_dt _ -> liftIO $
+final ref = Widget . mkFixM $ \_dt _ -> liftIO $
   liftM (maybe (Left PakejEmptyWidgetException) Right) (readIORef ref)
 
 -- | 'Widget' configuration
@@ -157,11 +169,11 @@ defaultConfig = Config { timeout = second, separator = Text.pack " | " }
 
 -- | Wait @n@ seconds between 'Widget' updates
 every :: (Ord l, Monad m) => n -> Widget m l v (Config n) (Config n)
-every n = arr (\conf -> conf { timeout = n })
+every n = Widget $ arr (\conf -> conf { timeout = n })
 
 -- | Separate 'Widget's values by some 'Text'
 inbetween :: (Ord l, Monad m) => Text -> Widget m l v (Config n) (Config n)
-inbetween t = arr (\conf -> conf { separator = t })
+inbetween t = Widget $ arr (\conf -> conf { separator = t })
 
 -- | 1 second timeout
 second :: Num a => a

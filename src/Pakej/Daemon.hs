@@ -106,7 +106,7 @@ preparePort _              = return (Right ())
 worker
   :: (Show l, Ord l, Integral n, MonadIO m)
   => IORef (Map l (Access v)) -> Widget m l v (Config n) a -> m b
-worker ref w = step w Map.empty clockSession
+worker ref w = step (unWidget w) Map.empty clockSession
  where
   step w' m' session' = do
     ((_, w'', session''), f) <- runWriterT (stepSession w' session' defaultConfig)
