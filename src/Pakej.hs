@@ -3,7 +3,10 @@ module Pakej
   ( -- * The main function
     pakej
     -- * Widget
-  , PakejWidget, Widget, (.), id
+  , PakejWidget
+  , Widget
+  , (.)
+  , id
     -- ** Store the result
   , Access(..)
   , public
@@ -16,6 +19,7 @@ module Pakej
   , constant
   , widget
   , query
+  , fromWire
     -- ** Configure
   , Config
   , defaultConfig
@@ -23,8 +27,11 @@ module Pakej
   , second
   , minute
   , inbetween
-    -- ** Misc
-  , PakejException
+    -- * netwire-4 helpers
+  , mkFix
+  , mkFixM
+  , mkState
+  , mkStateM
   ) where
 
 import Control.Category ((.), id)

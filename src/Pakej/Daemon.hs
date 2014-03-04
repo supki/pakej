@@ -14,7 +14,6 @@ import           Control.Monad.Trans.Writer (WriterT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
 import           Data.IORef
-import           Data.Monoid (Endo(..))
 import qualified Data.Map as Map
 import           Data.Map (Map)
 import           Data.Text.Lazy (Text)
@@ -104,12 +103,13 @@ preparePort (UnixSocket s) = tryIOError (removeFile s)
 preparePort _              = return (Right ())
 
 worker
-  :: (Show l, Ord l, Integral n, MonadIO m)
+  :: (Show l, Ord l, Integral n, Applicative m, MonadIO m)
   => IORef (Map l (Access v)) -> Widget m l v (Config n) a -> m b
-worker ref w = step (unWidget w) Map.empty clockSession
+worker ref w = step (unWidget w) Map.empty clockSession_
  where
   step w' m' session' = do
-    ((_, w'', session''), f) <- runWriterT (stepSession w' session' defaultConfig)
+    (dt, session'') <- stepSession session'
+    ((_, w''), f) <- runWriterT (stepWire w' dt (Right defaultConfig))
     let m'' = appEndo f m'
     liftIO $ do
       atomicWriteIORef ref m''

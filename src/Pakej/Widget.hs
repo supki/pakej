@@ -25,10 +25,15 @@ module Pakej.Widget
   , inbetween
     -- * Misc
   , PakejException
+    -- * netwire-4 helpers
+  , mkFix
+  , mkFixM
+  , mkState
+  , mkStateM
   ) where
 
 import           Control.Concurrent (forkIO, threadDelay)
-import           Control.Exception (IOException, throwIO, handle)
+import           Control.Exception (Exception(..), SomeException(..), throwIO, handle)
 import           Control.Monad (liftM)
 import           Control.Monad.Trans.Writer (WriterT, tell)
 import           Control.Monad.IO.Class (MonadIO(..))
@@ -38,25 +43,25 @@ import           Data.IORef (IORef, newIORef, readIORef, atomicWriteIORef)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe (catMaybes)
-import           Data.Monoid (Endo(..))
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import           Data.Traversable (Traversable, mapM)
-import           Data.Typeable (Typeable, cast)
+import           Data.Typeable (Typeable)
 import           Prelude hiding ((.), id, mapM)
 import           System.Exit (ExitCode(..))
 
 {-# ANN module "HLint: ignore Eta reduce" #-}
+{-# ANN module "HLint: ignore Use second" #-}
 
 
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
 newtype Widget m l v a b = Widget
- { unWidget :: Wire PakejException (WriterT (Endo (Map l (Access v))) m) a b
- } deriving (Category, Functor, Applicative, Profunctor)
+ { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (WriterT (Endo (Map l (Access v))) m) a b
+ } deriving (Category, Functor, Applicative)
 
 -- | Get a widget from an abstract 'Wire'
-fromWire :: (forall e m. Wire e m a b) -> Widget n l v a b
+fromWire :: Monad n => (forall e m. Monad m => Wire (Timed NominalDiffTime ()) e m a b) -> Widget n l v a b
 fromWire w = Widget w
 
 -- | Public results are available everywhere, but the private ones are only available
@@ -90,30 +95,21 @@ aggregate xs = go . Widget (multitry (map unWidget xs) &&& id)
              v  = Text.intercalate (separator conf) (catMaybes s')
          return (Right v, s')
 
-multitry :: (Traversable t, Monad m) => t (Wire e m a b) -> Wire e m a (t (Maybe b))
+multitry :: (Traversable t, Monad m, Monoid s) => t (Wire s e m a b) -> Wire s e m a (t (Maybe b))
 multitry ws' = mkGen $ \dt x' -> do
-  res <- mapM (\w -> stepWire w dt x') ws'
+  res <- mapM (\w -> stepWire w dt (Right x')) ws'
   let resx = mapM (\(mx, w) -> fmap (\x -> (x, w)) (forgive mx)) res
   return (fmap (fmap fst) resx, multitry (fmap snd res))
  where
-  forgive :: Either a c -> Either b (Maybe c)
+  forgive :: Either u v -> Either w (Maybe v)
   forgive = Right . either (const Nothing) Just
 
 -- | Exceptions that can be thrown while updating 'Widget's
 data PakejException =
-    PakejExitCodeException ExitCode -- ^ Widget command exited with @EXIT_FAILURE@
-  | PakejIOException IOException    -- ^ Widget action has thown an 'IO' exception
-  | PakejEmptyWidgetException       -- ^ Widget does not have any valid result yet
+    EmptyWidgetException -- ^ Widget does not have any valid result yet
     deriving (Show, Typeable)
 
-instance Exception PakejException where
-  fromException e@(SomeException se)
-    | Just e' <- fromException e = Just (PakejExitCodeException e')
-    | Just e' <- fromException e = Just (PakejIOException e')
-    | otherwise                 = cast se
-
-handlePakejException :: (PakejException -> IO a) -> IO a -> IO a
-handlePakejException = handle
+instance Exception PakejException
 
 -- | Construct a 'Widget' from the 'IO' action that returns 'Text'
 text :: (Ord l, MonadIO m, Integral n) => IO Text -> Widget m l v (Config n) Text
@@ -140,10 +136,10 @@ widget s io = Widget . mkGen $ \_dt n -> do
     ref <- newIORef Nothing
     forkIO (go (timeout n) ref s)
     return ref
-  return (Left PakejEmptyWidgetException, unWidget (final ref))
+  return (Left (SomeException EmptyWidgetException), unWidget (final ref))
  where
   go n ref = fix $ \loop a -> do
-    v <- handlePakejException (\_ -> return a) $ do
+    v <- handle (\(SomeException _) -> return a) $ do
       v <- io a
       atomicWriteIORef ref (Just v)
       return v
@@ -155,7 +151,7 @@ widget s io = Widget . mkGen $ \_dt n -> do
 -- /Note/: that's basically an internal function, but maybe it'll be useful for someone
 final :: (Ord l, MonadIO m) => IORef (Maybe a) -> Widget m l v x a
 final ref = Widget . mkFixM $ \_dt _ -> liftIO $
-  liftM (maybe (Left PakejEmptyWidgetException) Right) (readIORef ref)
+  liftM (maybe (Left (SomeException EmptyWidgetException)) Right) (readIORef ref)
 
 -- | 'Widget' configuration
 data Config n = Config
@@ -182,3 +178,23 @@ second = 1
 -- | 1 minute timeout
 minute :: Num a => a
 minute = 60
+
+-- | A port of netwire-4's @mkFixM@
+mkFix :: Monoid s => (s -> a -> Either e b) -> Wire s e m a b
+mkFix f = let w = mkPure (\dt -> (\x -> (x, w)) . f dt) in w
+
+-- | A port of netwire-4's @mkFixM@
+mkFixM :: (Monad m, Monoid s) => (s -> a -> m (Either e b)) -> Wire s e m a b
+mkFixM f = let w = mkGen (\dt -> liftM (\x -> (x, w)) . f dt) in w
+
+-- | A port of netwire-4's @mkStateM@
+mkState :: Monoid t => s -> (t -> (a, s) -> (Either e b, s)) -> Wire t e m a b
+mkState s0 f = loop s0
+ where
+  loop s' = mkPure $ \dt x' -> (\(a, b) -> (a, loop b)) (f dt (x', s'))
+
+-- | A port of netwire-4's @mkStateM@
+mkStateM :: (Monad m, Monoid t) => s -> (t -> (a, s) -> m (Either e b, s)) -> Wire t e m a b
+mkStateM s0 f = loop s0
+ where
+  loop s' = mkGen $ \dt x' -> liftM (\(a, b) -> (a, loop b)) (f dt (x', s'))
