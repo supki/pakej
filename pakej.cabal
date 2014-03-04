@@ -13,7 +13,8 @@ cabal-version:       >= 1.10
 data-files:
   data/pakej.hs
 extra-source-files:
-  example/Main.hs
+  example/datetime.hs
+  example/aggregation.hs
   data/_pakej
 
 library
