@@ -50,7 +50,6 @@ import           Data.Typeable (Typeable)
 import           Prelude hiding ((.), id, mapM)
 import           System.Exit (ExitCode(..))
 
-{-# ANN module "HLint: ignore Eta reduce" #-}
 {-# ANN module "HLint: ignore Use second" #-}
 
 
@@ -60,6 +59,7 @@ newtype Widget m l v a b = Widget
  { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (WriterT (Endo (Map l (Access v))) m) a b
  } deriving (Category, Functor, Applicative)
 
+{-# ANN fromWire "HLint: ignore Eta reduce" #-}
 -- | Get a widget from an abstract 'Wire'
 fromWire :: Monad n => (forall e m. Monad m => Wire (Timed NominalDiffTime ()) e m a b) -> Widget n l v a b
 fromWire w = Widget w
@@ -89,20 +89,27 @@ store f l = Widget . mkFixM $ \_dt v -> do
 --
 -- Failed 'Widget's' results are skipped so they do not clutter the resulting value
 aggregate :: (Ord l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
-aggregate xs = go . Widget (multitry (map unWidget xs) &&& id)
+aggregate xs = go . Widget (dispatch (map unWidget xs) &&& id)
  where go = Widget . mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
          let s' = zipWith (<|>) vs s
              v  = Text.intercalate (separator conf) (catMaybes s')
          return (Right v, s')
 
-multitry :: (Traversable t, Monad m, Monoid s) => t (Wire s e m a b) -> Wire s e m a (t (Maybe b))
-multitry ws' = mkGen $ \dt x' -> do
-  res <- mapM (\w -> stepWire w dt (Right x')) ws'
-  let resx = mapM (\(mx, w) -> fmap (\x -> (x, w)) (forgive mx)) res
-  return (fmap (fmap fst) resx, multitry (fmap snd res))
+-- | Step through wires, mapping each success @x@ to @Just x@ and each inhibition @y@ to @Nothing@
+dispatch :: (Traversable t, Monad m, Monoid s) => t (Wire s e m a b) -> Wire s e m a (t (Maybe b))
+dispatch ws = mkGen $ \dt x -> do
+  t <- stepWires dt x ws
+  return (values t, dispatch (wires t))
  where
-  forgive :: Either u v -> Either w (Maybe v)
-  forgive = Right . either (const Nothing) Just
+  values = pure . fmap (either (const Nothing) Just . fst)
+  wires  = fmap snd
+
+-- | Step through wires using the same time delta and the same input for all of them,
+-- collecting their results and updated wires
+stepWires
+  :: (Traversable t, Monad m)
+  => s -> a -> t (Wire s e m a b) -> m (t (Either e b, Wire s e m a b))
+stepWires dt x = mapM (\w -> stepWire w dt (Right x))
 
 -- | Exceptions that can be thrown while updating 'Widget's
 data PakejException =
