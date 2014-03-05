@@ -11,12 +11,12 @@ Installation
 
 Installation is a ~~fairly involved~~ remarkably simple process:
 
-```
-% git clone https://github.com/supki/pakej
-% cabal install pakej/pakej.cabal
-% pakej --init
-% pakej --recompile
-% pakej
+```sh
+$ git clone https://github.com/supki/pakej
+$ cabal install pakej/pakej.cabal
+$ pakej --init
+$ pakej --recompile
+$ pakej
 ```
 
 The default pakej configuration isn't very interesting though, so you'd really want
@@ -30,27 +30,47 @@ The Tutorial
 Here I assume you've successfully installed `pakej` package already. I encourage you
 to test the assumption by executing
 
-```
+```sh
 $ ghc -e 'import Pakej'
 ```
 
-or, in case you're using sandboxes,
+The expected result is GHC staying silent.  If you see something akin to:
 
-```
-$ ghc -e 'import Pakej' "-package-db=$PACKAGE_DB"
-```
-
-command, where `$PACKAGE_DB` is the path to the sandbox `.conf.d` directory (it's
-`.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d` on my machine, for instance,
-but it can be different on yours). The expected result is GHC staying silent.
-If you see something akin to:
-
-```
+```sh
 <no location info>:
     Could not find module `Pakej'
 ```
 
 that means Pakej has __not__ been installed successfully!
+
+#### Using sandboxes
+
+Pakej does not come with the built-in support for Cabal sandboxes, but they're pretty
+easy to use nevertheless.
+
+First off, check you have any chance at all for Pakej to work inside the sandbox:
+
+```sh
+$ ghc -e 'import Pakej' -package-db=.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
+```
+
+Note, package database path may be different on your machine but it should be of the
+same shape. Next, instead of
+
+```sh
+pakej --recompile
+```
+
+use
+
+```sh
+pakej --recompile -no-user-package-db -package-db=.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
+```
+
+That's pretty much all. `pakej --recompile` passes all arguments to GHC, so you can
+customize the compilation any way you want, but those two flags should be enough for most
+configurations
+
 
 ### What this tutorial is all about?
 
@@ -63,21 +83,21 @@ be screen captures illustrating our progress.
 
 First, let's initialize Pakej environment:
 
-```
+```sh
 $ pakej --init
 ```
 
 This will create `~/.pakej` directory and populate it with the `pakej.hs` template.
 Go look at it! ..It's not very interesting, but that's a start. We can compile it:
 
-```
+```sh
 $ pakej --recompile
 ...
 ```
 
 and even run:
 
-```
+```sh
 $ pakej
 pakej 0.2.0.0, listening on
    - localhost:/home/maksenov/.pakej/pakej.sock
@@ -136,7 +156,7 @@ main = pakej $ private "datetime" . text datetime
 
 Let's try it:
 
-```
+```sh
 $ pakej --recompile
 $ pakej --replace
 $ pakej --stat
@@ -186,7 +206,7 @@ main = pakej $ private "status" . aggregate $
 
 So, let's try it:
 
-```
+```sh
 $ pakej --recompile
 $ pakej --replace
 $ pakej --stat
