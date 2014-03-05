@@ -22,6 +22,8 @@ module Pakej.Widget
   , every
   , second
   , minute
+  , hour
+  , day
   , inbetween
     -- * Misc
   , PakejException
@@ -184,9 +186,17 @@ second = 1
 
 -- | 1 minute timeout
 minute :: Num a => a
-minute = 60
+minute = 60 * second
 
--- | A port of netwire-4's @mkFixM@
+-- | 1 hour timeout
+hour :: Num a => a
+hour = 60 * minute
+
+-- | 1 day timeout
+day :: Num a => a
+day = 24 * hour
+
+-- | A port of netwire-4's @mkFix@
 mkFix :: Monoid s => (s -> a -> Either e b) -> Wire s e m a b
 mkFix f = let w = mkPure (\dt -> (\x -> (x, w)) . f dt) in w
 
@@ -194,7 +204,7 @@ mkFix f = let w = mkPure (\dt -> (\x -> (x, w)) . f dt) in w
 mkFixM :: (Monad m, Monoid s) => (s -> a -> m (Either e b)) -> Wire s e m a b
 mkFixM f = let w = mkGen (\dt -> liftM (\x -> (x, w)) . f dt) in w
 
--- | A port of netwire-4's @mkStateM@
+-- | A port of netwire-4's @mkState@
 mkState :: Monoid t => s -> (t -> (a, s) -> (Either e b, s)) -> Wire t e m a b
 mkState s0 f = loop s0
  where

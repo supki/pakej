@@ -26,6 +26,8 @@ module Pakej
   , every
   , second
   , minute
+  , hour
+  , day
   , inbetween
     -- * netwire-4 helpers
   , mkFix
