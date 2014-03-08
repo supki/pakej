@@ -37,13 +37,13 @@ module Pakej.Widget
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (Exception(..), SomeException(..), throwIO, handle)
 import           Control.Monad (liftM)
-import           Control.Monad.Trans.Writer (WriterT, tell)
+import           Control.Monad.Trans.State.Strict (StateT, modify)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (second, loop)
 import           Data.Function (fix)
 import           Data.IORef (IORef, newIORef, readIORef, atomicWriteIORef)
-import           Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import           Data.Maybe (catMaybes)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
@@ -58,7 +58,7 @@ import           System.Exit (ExitCode(..))
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
 newtype Widget m l v a b = Widget
- { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (WriterT (Endo (Map l (Access v))) m) a b
+ { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (StateT (Map l (Access v)) m) a b
  } deriving (Category, Functor, Applicative)
 
 {-# ANN fromWire "HLint: ignore Eta reduce" #-}
@@ -84,7 +84,7 @@ private = store Private
 -- | Store the 'Widget''s result under the specified label
 store :: (Ord l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
 store f l = Widget . mkFixM $ \_dt v -> do
-  tell (Endo (Map.insert l (f v)))
+  modify (Map.insert l (f v))
   return (Right v)
 
 -- | Aggregate all successful 'Widget's' results

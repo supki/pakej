@@ -10,7 +10,7 @@ import           Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 import           Control.Exception (bracket)
 import           Control.Lens
 import           Control.Monad (forever)
-import           Control.Monad.Trans.Writer (WriterT(..))
+import           Control.Monad.Trans.State.Strict (StateT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
 import           Data.IORef
@@ -109,8 +109,7 @@ worker ref w = step (unWidget w) Map.empty clockSession_
  where
   step w' m' session' = do
     (dt, session'') <- stepSession session'
-    ((_, w''), f) <- runWriterT (stepWire w' dt (Right defaultConfig))
-    let m'' = appEndo f m'
+    ((_, w''), m'') <- runStateT (stepWire w' dt (Right defaultConfig)) m'
     liftIO $ do
       atomicWriteIORef ref m''
       threadDelay 200000
