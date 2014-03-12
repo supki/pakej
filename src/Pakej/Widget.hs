@@ -42,8 +42,9 @@ import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (second, loop)
 import           Data.Function (fix)
 import           Data.IORef (IORef, newIORef, readIORef, atomicWriteIORef)
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import           Data.Hashable (Hashable)
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as Map
 import           Data.Maybe (catMaybes)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
@@ -58,7 +59,7 @@ import           System.Exit (ExitCode(..))
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
 newtype Widget m l v a b = Widget
- { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (StateT (Map l (Access v)) m) a b
+ { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (StateT (HashMap l (Access v)) m) a b
  } deriving (Category, Functor, Applicative)
 
 {-# ANN fromWire "HLint: ignore Eta reduce" #-}
@@ -74,15 +75,15 @@ data Access t =
     deriving (Show, Eq)
 
 -- | Store the 'Widget''s result under the specified label publicly
-public :: (Ord l, Monad m) => l -> Widget m l v v v
+public :: (Eq l, Hashable l, Monad m) => l -> Widget m l v v v
 public = store Public
 
 -- | Store the 'Widget''s result under the specified label privately
-private :: (Ord l, Monad m) => l -> Widget m l v v v
+private :: (Eq l, Hashable l, Monad m) => l -> Widget m l v v v
 private = store Private
 
 -- | Store the 'Widget''s result under the specified label
-store :: (Ord l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
+store :: (Eq l, Hashable l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
 store f l = Widget . mkFixM $ \_dt v -> do
   modify (Map.insert l (f v))
   return (Right v)
@@ -90,7 +91,7 @@ store f l = Widget . mkFixM $ \_dt v -> do
 -- | Aggregate all successful 'Widget's' results
 --
 -- Failed 'Widget's' results are skipped so they do not clutter the resulting value
-aggregate :: (Ord l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
+aggregate :: (Hashable l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
 aggregate xs = go . Widget (dispatch (map unWidget xs) &&& id)
  where go = Widget . mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
          let s' = zipWith (<|>) vs s
@@ -121,12 +122,12 @@ data PakejException =
 instance Exception PakejException
 
 -- | Construct a 'Widget' from the 'IO' action that returns 'Text'
-text :: (Ord l, MonadIO m, Integral n) => IO Text -> Widget m l v (Config n) Text
+text :: (Hashable l, MonadIO m, Integral n) => IO Text -> Widget m l v (Config n) Text
 text = constant
 
 -- | Construct a 'Widget' from the external command.
 system
-  :: (Ord l, MonadIO m, Integral n)
+  :: (Hashable l, MonadIO m, Integral n)
   => IO (ExitCode, Text, Text) -> Widget m l v (Config n) Text
 system io = constant $ do
   (ec, out, _) <- io
@@ -135,11 +136,11 @@ system io = constant $ do
     _           -> throwIO ec
 
 -- | Construct a 'Widget' from the IO action
-constant :: (Ord l, MonadIO m, Integral n) => IO b -> Widget m l v (Config n) b
+constant :: (Hashable l, MonadIO m, Integral n) => IO b -> Widget m l v (Config n) b
 constant io = widget undefined (const io)
 
 -- | Construct a 'Widget' from the /iterating/ IO action
-widget :: (Ord l, MonadIO m, Integral n) => a -> (a -> IO a) -> Widget m l v (Config n) a
+widget :: (Hashable l, MonadIO m, Integral n) => a -> (a -> IO a) -> Widget m l v (Config n) a
 widget s io = Widget . mkGen $ \_dt n -> do
   ref <- liftIO $ do
     ref <- newIORef Nothing
@@ -158,7 +159,7 @@ widget s io = Widget . mkGen $ \_dt n -> do
 -- | Construct a 'Widget' from a possibly empty 'IORef'
 --
 -- /Note/: that's basically an internal function, but maybe it'll be useful for someone
-final :: (Ord l, MonadIO m) => IORef (Maybe a) -> Widget m l v x a
+final :: (Hashable l, MonadIO m) => IORef (Maybe a) -> Widget m l v x a
 final ref = Widget . mkFixM $ \_dt _ -> liftIO $
   liftM (maybe (Left (SomeException EmptyWidgetException)) Right) (readIORef ref)
 
@@ -173,11 +174,11 @@ defaultConfig :: Num n => Config n
 defaultConfig = Config { timeout = second, separator = Text.pack " | " }
 
 -- | Wait @n@ seconds between 'Widget' updates
-every :: (Ord l, Monad m) => n -> Widget m l v (Config n) (Config n)
+every :: (Hashable l, Monad m) => n -> Widget m l v (Config n) (Config n)
 every n = Widget $ arr (\conf -> conf { timeout = n })
 
 -- | Separate 'Widget's values by some 'Text'
-inbetween :: (Ord l, Monad m) => Text -> Widget m l v (Config n) (Config n)
+inbetween :: (Hashable l, Monad m) => Text -> Widget m l v (Config n) (Config n)
 inbetween t = Widget $ arr (\conf -> conf { separator = t })
 
 -- | 1 second timeout

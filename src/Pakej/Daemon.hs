@@ -14,8 +14,9 @@ import           Control.Monad.Trans.State.Strict (StateT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
 import           Data.IORef
-import qualified Data.Map as Map
-import           Data.Map (Map)
+import           Data.Hashable (Hashable)
+import qualified Data.HashMap.Strict as Map
+import           Data.HashMap.Strict (HashMap)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import           Data.Version (showVersion)
@@ -52,7 +53,7 @@ greeting conf = do
  where
   pretty p = "  - " ++ site "localhost" p
 
-listen :: IORef (Map Text (Access Text)) -> PortID -> IO Lock
+listen :: IORef (HashMap Text (Access Text)) -> PortID -> IO Lock
 listen ref p = do
   lock <- newLock
   forkFinally listenLoop (\_ -> releaseLock lock)
@@ -83,7 +84,7 @@ acquireLock = takeMVar . unLock
 releaseLock :: Lock -> IO ()
 releaseLock (Lock var) = putMVar var ()
 
-response :: Map Text (Access Text) -> PortID -> Request -> Response
+response :: HashMap Text (Access Text) -> PortID -> Request -> Response
 response m p = \case
   CQuery key -> case (Map.lookup key m, p) of
     (Just (Private _), PortNumber _) ->
@@ -103,8 +104,8 @@ preparePort (UnixSocket s) = tryIOError (removeFile s)
 preparePort _              = return (Right ())
 
 worker
-  :: (Show l, Ord l, Integral n, Applicative m, MonadIO m)
-  => IORef (Map l (Access v)) -> Widget m l v (Config n) a -> m b
+  :: (Show l, Eq l, Hashable l, Integral n, Applicative m, MonadIO m)
+  => IORef (HashMap l (Access v)) -> Widget m l v (Config n) a -> m b
 worker ref w = step (unWidget w) Map.empty clockSession_
  where
   step w' m' session' = do

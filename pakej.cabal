@@ -23,16 +23,17 @@ library
       base                 == 4.*
     , bytestring
     , cereal
-    , containers
     , directory
     , filepath
+    , hashable
     , lens                 >= 4.0
+    , netwire              >= 5
     , network
     , optparse-applicative
     , text
-    , unix
-    , netwire              >= 5
     , transformers
+    , unix
+    , unordered-containers
   hs-source-dirs:    src
   exposed-modules:
     Pakej
