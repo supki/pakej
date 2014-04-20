@@ -33,7 +33,7 @@ initPakej = do
 recompilePakej :: FilePath -> [String] -> IO a
 recompilePakej dst args = do
   s <- source
-  executeFile "ghc" True ([s, "-o", dst, "-O", "-threaded"] ++ args) Nothing
+  executeFile "cabal" True (["exec", "ghc", "--", s, "-o", dst, "-O", "-threaded"] ++ args) Nothing
 
 -- | Run pakej executable with the specified arguments
 runPakej :: FilePath -> [String] -> IO a
