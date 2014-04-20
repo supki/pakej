@@ -13,6 +13,7 @@ Installation is a ~~fairly involved~~ remarkably simple process:
 
 ```sh
 $ git clone https://github.com/supki/pakej
+% cabal install cabal-install --constraint='cabal-install >= 1.20'
 $ cabal install pakej/pakej.cabal
 $ pakej --init
 $ pakej --recompile
@@ -31,7 +32,7 @@ Here I assume you've successfully installed `pakej` package already. I encourage
 to test the assumption by executing
 
 ```sh
-$ ghc -e 'import Pakej'
+$ cabal exec ghc -- -e 'import Pakej'
 ```
 
 The expected result is GHC staying silent.  If you see something akin to:
@@ -42,35 +43,6 @@ The expected result is GHC staying silent.  If you see something akin to:
 ```
 
 that means Pakej has __not__ been installed successfully!
-
-#### Using sandboxes
-
-Pakej does not come with the built-in support for Cabal sandboxes, but they're pretty
-easy to use nevertheless.
-
-First off, check you have any chance at all for Pakej to work inside the sandbox:
-
-```sh
-$ ghc -e 'import Pakej' -package-db=.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
-```
-
-Note, package database path may be different on your machine but it should be of the
-same shape. Next, instead of
-
-```sh
-pakej --recompile
-```
-
-use
-
-```sh
-pakej --recompile -no-user-package-db -package-db=.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
-```
-
-That's pretty much all. `pakej --recompile` passes all arguments to GHC, so you can
-customize the compilation any way you want, but those two flags should be enough for most
-configurations
-
 
 ### What this tutorial is all about?
 
