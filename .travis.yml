@@ -1,11 +1,12 @@
 language: haskell
 
 ghc:
-    - 7.8
+    # - 7.8
     - 7.6
 
 before_install:
     - cabal install cabal-install --constraint='cabal-install >= 1.20'
+    - cabal --version
     - cabal install cpphs
     - cabal install command-qq
     - git clone https://github.com/supki/.dotfiles
