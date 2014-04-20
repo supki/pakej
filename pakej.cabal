@@ -29,7 +29,7 @@ library
     , lens                 >= 4.0
     , netwire              >= 5
     , network
-    , optparse-applicative
+    , optparse-applicative >= 0.8
     , text
     , transformers
     , unix

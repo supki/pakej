@@ -1,6 +1,7 @@
 language: haskell
 
 before_install:
+    - cabal install cabal-install --constraint='cabal-install >= 1.20'
     - cabal install cpphs
     - cabal install command-qq
     - git clone https://github.com/supki/.dotfiles
