@@ -6,6 +6,8 @@ ghc:
 
 before_install:
     - cabal install cabal-install --constraint='cabal-install >= 1.20'
+    - export PATH="$HOME/.cabal/bin:$PATH"
+    - hash -r
     - cabal --version
     - cabal install cpphs
     - cabal install command-qq
