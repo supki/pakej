@@ -37,7 +37,7 @@ module Pakej.Widget
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (Exception(..), SomeException(..), throwIO, handle)
 import           Control.Monad (liftM)
-import           Control.Monad.Trans.State.Strict (StateT, modify)
+import           Control.Monad.Trans.State.Strict (StateT, get, put)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (second, loop)
 import           Data.Function (fix)
@@ -85,8 +85,13 @@ private = store Private
 -- | Store the 'Widget''s result under the specified label
 store :: (Eq l, Hashable l, Monad m) => (v -> Access v) -> l -> Widget m l v v v
 store f l = Widget . mkFixM $ \_dt v -> do
-  modify (Map.insert l (f v))
+  modify' (Map.insert l (f v))
   return (Right v)
+
+modify' :: Monad m => (s -> s) -> StateT s m ()
+modify' f = do
+  s <- get
+  put $! f s
 
 -- | Aggregate all successful 'Widget's' results
 --
