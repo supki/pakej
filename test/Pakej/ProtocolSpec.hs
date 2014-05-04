@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Pakej.CommunicationSpec (spec) where
+module Pakej.ProtocolSpec (spec) where
 
-import Control.Lens
+import           Control.Lens
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
-import Data.Serialize (Serialize, encode, decode)
-import Test.Hspec
-import Test.Hspec.Expectations.Lens
+import           Data.Serialize (Serialize, encode, decode)
+import           Test.Hspec
+import           Test.Hspec.Expectations.Lens
 
-import Pakej.Communication
+import           Pakej.Protocol
 
 
 spec :: Spec

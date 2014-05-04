@@ -13,10 +13,15 @@ import           Control.Monad (forever)
 import           Control.Monad.Trans.State.Strict (StateT(..))
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (loop)
+import           Data.Conduit (($=), (=$), (=$=), ($$))
+import           Data.Conduit.Binary (sourceHandle, sinkHandle)
+import           Data.Conduit.Cereal (conduitGet, conduitPut)
+import qualified Data.Conduit.List as CL
 import           Data.IORef
 import           Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as Map
 import           Data.HashMap.Strict (HashMap)
+import           Data.Serialize (get, put)
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import           Data.Version (showVersion)
@@ -24,13 +29,13 @@ import           Network
 import           Prelude hiding ((.), id, fail)
 import           System.Directory (removeFile)
 import           System.IO (hClose)
-import           System.IO.Error (catchIOError, tryIOError)
+import           System.IO.Error (tryIOError)
 import           Text.Printf (printf)
 
-import           Pakej.Widget
-import           Pakej.Communication
 import           Pakej.Conf (Conf, addrs)
 import           Pakej.Daemon.Daemonize (daemonize)
+import           Pakej.Protocol
+import           Pakej.Widget
 
 import           Paths_pakej (version)
 
@@ -49,7 +54,7 @@ daemon conf w = do
 greeting :: Conf -> IO ()
 greeting conf = do
   printf "pakej %s, listening on:\n" (showVersion version)
-  mapM_ (putStrLn . pretty)  (view addrs conf)
+  mapM_ (putStrLn . pretty) (view addrs conf)
  where
   pretty p = "  - " ++ site "localhost" p
 
@@ -60,18 +65,15 @@ listen ref p = do
   return lock
  where
    listenLoop = bracket (preparePort p >> listenOn p) sClose $ \s ->
-     forever $
-       bracket (accept s) (\(h, _, _) -> hClose h) $ \(h, _, _) -> do
-         k <- recv h
-         case k of
-           Right query -> do
-             m <- readIORef ref
-             send h (response m p query)
-           Left _ ->
-             return ()
-        `catchIOError` \e -> do
-         threadDelay 100000
-         print e
+     forever $ do
+       (h, _, _) <- accept s
+       forkFinally
+        (sourceHandle h $= conduitGet get =$= CL.mapM respond $$ conduitPut put =$ sinkHandle h)
+        (\_ -> hClose h)
+
+   respond query = do
+     m <- liftIO $ readIORef ref
+     return (response m p query)
 
 newtype Lock = Lock { unLock :: MVar () }
 

@@ -23,6 +23,9 @@ library
       base                 == 4.*
     , bytestring
     , cereal
+    , cereal-conduit
+    , conduit
+    , conduit-extra
     , directory
     , filepath
     , hashable
@@ -38,13 +41,16 @@ library
   exposed-modules:
     Pakej
     Pakej.Client
-    Pakej.Communication
     Pakej.Conf
     Pakej.Daemon
     Pakej.Daemon.Daemonize
+    Pakej.Protocol
     Pakej.Widget
   other-modules:
     Paths_pakej
+  ghc-options:
+    -Wall
+    -fno-warn-unused-do-bind
 
 executable pakej
   default-language:  Haskell2010

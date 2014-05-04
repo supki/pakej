@@ -1,45 +1,19 @@
 {-# LANGUAGE DefaultSignatures #-}
 -- | Client-Daemon communication
-module Pakej.Communication
-  ( communicate
-  , Send(..)
-  , Recv(..)
-  , Request(..)
+module Pakej.Protocol
+  ( Request(..)
   , Response(..)
   , site
   ) where
 
 import           Control.Applicative
-import           Control.Monad
-import           Control.Exception (evaluate)
-import qualified Data.ByteString.Lazy as ByteString
 import           Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy.Encoding as Text
-import           Data.Serialize (Serialize(..), getWord8, putWord8, encodeLazy, decodeLazy)
+import           Data.Serialize (Serialize(..), getWord8, putWord8)
 import           Data.Traversable (traverse)
 import           Network (HostName, PortID(..))
-import           System.IO (Handle)
 import           Text.Printf (printf)
 
-
-class Send m where
-  send :: Handle -> m -> IO ()
-  default send :: Serialize m => Handle -> m -> IO ()
-  send h = ByteString.hPut h . encodeLazy
-
-instance Send Request
-instance Send Response
-
-class Recv m where
-  recv :: Handle -> IO (Either String m)
-  default recv :: Serialize m => Handle -> IO (Either String m)
-  recv = evaluate <=< fmap decodeLazy . ByteString.hGetContents
-
-instance Recv Request
-instance Recv Response
-
-communicate :: (Send a, Recv b) => a -> Handle -> IO (Either String b)
-communicate a h = send h a >> recv h
 
 data Request =
     CQuery Text

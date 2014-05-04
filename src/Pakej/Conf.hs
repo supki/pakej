@@ -21,7 +21,7 @@ import           System.Environment (withProgName)
 import           System.FilePath ((</>))
 import           Text.Printf (printf)
 
-import           Pakej.Communication (Request(..))
+import           Pakej.Protocol (Request(..))
 import           Paths_pakej (version)
 
 

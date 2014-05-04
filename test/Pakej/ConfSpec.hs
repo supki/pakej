@@ -9,7 +9,7 @@ import Options.Applicative
 import Test.Hspec
 import Test.Hspec.Expectations.Lens
 
-import Pakej.Communication
+import Pakej.Protocol
 import Pakej.Conf
 
 import Paths_pakej (version)
