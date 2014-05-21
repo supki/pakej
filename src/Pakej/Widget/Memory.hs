@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+-- | A parser for @\/proc\/meminfo@
 module Pakej.Widget.Memory
   ( memoryData
 #ifdef TEST
@@ -21,6 +22,25 @@ import           Data.Traversable (traverse)
 import           System.IO.Error (catchIOError)
 
 
+-- | Parse @\/proc\/meminfo@ (or any file with the same format) data
+-- to the key-value mapping, e.g. if
+--
+-- @
+-- % cat \/proc\/meminfo
+-- MemTotal:        3912112 kB
+-- MemFree:          170128 kB
+-- @
+--
+-- then
+--
+-- >>> memoryData "/proc/meminfo"
+-- Right (fromList [("MemTotal", 3912112), ("MemFree", 170128), ...])
+--
+-- If any problems are encountered while parsing it returns the first one
+-- wrapped in 'Left'
+--
+-- Catches I/O exceptions thrown upon opening and reading the file and presents
+-- their error message wrapped in 'Left'
 memoryData :: FilePath -> IO (Either Text (HashMap Text Int64))
 memoryData = handleIOError (return . memoryDataError . Text.pack . show) . fmap parseData . Text.readFile
 
