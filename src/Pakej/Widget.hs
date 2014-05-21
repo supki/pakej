@@ -70,8 +70,8 @@ fromWire w = Widget w
 -- | Public results are available everywhere, but the private ones are only available
 -- for local queries (meaning queries to the local UNIX socket Pakej's listening)
 data Access t =
-    Public  { unAccess :: t }
-  | Private { unAccess :: t }
+    Public  { unAccess :: !t }
+  | Private { unAccess :: !t }
     deriving (Show, Eq)
 
 -- | Store the 'Widget''s result under the specified label publicly
