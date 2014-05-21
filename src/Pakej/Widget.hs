@@ -101,7 +101,7 @@ aggregate xs = go . Widget (dispatch (map unWidget xs) &&& id)
  where go = Widget . mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
          let s' = zipWith (<|>) vs s
              v  = Text.intercalate (separator conf) (catMaybes s')
-         return (Right v, s')
+         v `seq` return (Right v, s')
 
 -- | Step through wires, mapping each success @x@ to @Just x@ and each inhibition @y@ to @Nothing@
 dispatch :: (Traversable t, Monad m, Monoid s) => t (Wire s e m a b) -> Wire s e m a (t (Maybe b))
