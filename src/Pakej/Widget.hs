@@ -48,6 +48,7 @@ import qualified Data.HashMap.Strict as Map
 import           Data.Maybe (catMaybes)
 import           Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as LazyText
 import           Data.Traversable (Traversable, mapM)
 import           Data.Typeable (Typeable)
 import           Prelude hiding ((.), id, mapM)
@@ -133,11 +134,11 @@ text = constant
 -- | Construct a 'Widget' from the external command.
 system
   :: (Hashable l, MonadIO m, Integral n)
-  => IO (ExitCode, Text, Text) -> Widget m l v (Config n) Text
+  => IO (ExitCode, LazyText.Text, LazyText.Text) -> Widget m l v (Config n) Text
 system io = constant $ do
   (ec, out, _) <- io
   case ec of
-    ExitSuccess -> return out
+    ExitSuccess -> return (LazyText.toStrict out)
     _           -> throwIO ec
 
 -- | Construct a 'Widget' from the IO action
