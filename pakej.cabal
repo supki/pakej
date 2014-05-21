@@ -46,6 +46,7 @@ library
     Pakej.Daemon.Daemonize
     Pakej.Protocol
     Pakej.Widget
+    Pakej.Widget.Memory
   other-modules:
     Paths_pakej
   ghc-options:
