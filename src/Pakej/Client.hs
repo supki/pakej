@@ -18,9 +18,9 @@ import qualified Data.Conduit.List as CL
 import           Data.Function (fix)
 import           Data.Serialize (get, put)
 import           Data.String (fromString)
-import           Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
-import qualified Data.Text.Lazy.IO as Text
+import           Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import           Network
 import           System.Exit (exitFailure)
 import           System.Exit.Lens (_ExitSuccess)

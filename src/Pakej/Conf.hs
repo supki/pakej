@@ -12,7 +12,7 @@ module Pakej.Conf
 
 import           Control.Lens hiding (argument)
 import           Data.Foldable (asum)
-import qualified Data.Text.Lazy as Text
+import qualified Data.Text as Text
 import           Data.Version (Version)
 import           Options.Applicative
 import           Network (PortID(..), HostName)

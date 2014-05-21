@@ -22,8 +22,8 @@ import           Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as Map
 import           Data.HashMap.Strict (HashMap)
 import           Data.Serialize (get, put)
-import           Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
+import           Data.Text (Text)
+import qualified Data.Text as Text
 import           Data.Version (showVersion)
 import           Network
 import           Prelude hiding ((.), id, fail)

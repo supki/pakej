@@ -46,8 +46,8 @@ import           Data.Hashable (Hashable)
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as Map
 import           Data.Maybe (catMaybes)
-import           Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy as Text
+import           Data.Text (Text)
+import qualified Data.Text as Text
 import           Data.Traversable (Traversable, mapM)
 import           Data.Typeable (Typeable)
 import           Prelude hiding ((.), id, mapM)

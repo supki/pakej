@@ -7,8 +7,8 @@ module Pakej.Protocol
   ) where
 
 import           Control.Applicative
-import           Data.Text.Lazy (Text)
-import qualified Data.Text.Lazy.Encoding as Text
+import           Data.Text (Text)
+import qualified Data.Text.Encoding as Text
 import           Data.Serialize (Serialize(..), getWord8, putWord8)
 import           Data.Traversable (traverse)
 import           Network (HostName, PortID(..))
