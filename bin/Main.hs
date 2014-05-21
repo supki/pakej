@@ -4,9 +4,11 @@ module Main (main) where
 import Data.Version (showVersion)
 import System.Directory (copyFile, createDirectoryIfMissing, getAppUserDataDirectory)
 import System.Environment (getArgs)
+import System.Exit (exitWith)
 import System.FilePath ((</>), takeDirectory)
 import System.Info (arch, os)
 import System.Posix.Process (executeFile)
+import System.Process (runProcess, waitForProcess)
 import Text.Printf (printf)
 
 import Paths_pakej (version, getDataFileName)
@@ -24,7 +26,7 @@ main = do
 -- | Create Pakej app directory and copy pakej.hs template over
 initPakej :: IO ()
 initPakej = do
-  s <- source
+  s <- sourceFile
   createDirectoryIfMissing True (takeDirectory s)
   t <- getDataFileName "data/pakej.hs"
   copyFile t s
@@ -32,8 +34,12 @@ initPakej = do
 -- | Recompile pakej sources and place the result somewhere
 recompilePakej :: FilePath -> [String] -> IO a
 recompilePakej dst args = do
-  s <- source
-  executeFile "cabal" True (["exec", "ghc", "--", s, "-o", dst, "-O", "-threaded"] ++ args) Nothing
+  source <- sourceFile
+  appDir <- appDirectory
+  exitWith =<<
+    waitForProcess =<<
+      runProcess "cabal" (["exec", "ghc", "--", source, "-o", dst, "-O", "-threaded"] ++ args)
+        (Just appDir) Nothing Nothing Nothing Nothing
 
 -- | Run pakej executable with the specified arguments
 runPakej :: FilePath -> [String] -> IO a
@@ -41,13 +47,14 @@ runPakej path args = executeFile path False args Nothing
 
 -- | ~/.pakej/pakej-x86_64-linux
 program :: IO FilePath
-program = appDirectory "pakej" (printf "pakej-%s-%s-%s" arch os (showVersion version))
+program = inAppDirectory (printf "pakej-%s-%s-%s" arch os (showVersion version))
 
 -- | ~/.pakej/pakej.hs
-source :: IO FilePath
-source = appDirectory "pakej" "pakej.hs"
+sourceFile :: IO FilePath
+sourceFile = inAppDirectory "pakej.hs"
 
-appDirectory :: String -> FilePath -> IO FilePath
-appDirectory app filename = do
-  dir <- getAppUserDataDirectory app
-  return (dir </> filename)
+inAppDirectory :: FilePath -> IO FilePath
+inAppDirectory path = fmap (</> path) appDirectory
+
+appDirectory :: IO FilePath
+appDirectory = getAppUserDataDirectory "pakej"

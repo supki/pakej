@@ -60,6 +60,7 @@ executable pakej
     , bytestring
     , directory
     , filepath
+    , process
     , unix
   hs-source-dirs:    bin
   main-is:           Main.hs
