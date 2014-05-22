@@ -3,8 +3,10 @@ module Pakej.Widget.MemorySpec
   ( spec
   ) where
 
+import           Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.HashMap.Strict as HashMap
+import           Numeric (showFFloat)
 import           Test.Hspec
 
 import           Pakej.Widget.Memory
@@ -21,30 +23,56 @@ spec = do
 
   describe "parseData" $
     it "parses excerpt content from /proc/meminfo to the hash" $
-      parseData (Text.unlines
-        [ "MemTotal:        3912112 kB"
-        , "MemFree:          168068 kB"
-        , "Buffers:           54864 kB"
-        , "Cached:          1353200 kB"
-        ]) `shouldBe` Right (HashMap.fromList
-          [ ("MemTotal", 3912112)
-          , ("MemFree", 168068)
-          , ("Buffers", 54864)
-          , ("Cached", 1353200)
-          ])
+      parseData memDataNew `shouldBe` Right (Mem (HashMap.fromList
+        [ ("MemTotal", 2040896)
+        , ("MemFree", 1253068)
+        , ("MemAvailable", 1793956)
+        , ("Buffers", 82356)
+        , ("Cached", 447036)
+        ]))
 
-  describe "memoryData" $ do
+  describe "getData" $ do
     it "does not throw exceptions if file does not exist" $
-      memoryData "does-not-exist.txt"
+      getData "does-not-exist.txt"
      `shouldReturn`
       memoryDataError "does-not-exist.txt: openFile: does not exist (No such file or directory)"
 
     it "does not throw exceptions if file is of the wrong type" $
-      memoryData "/"
+      getData "/"
      `shouldReturn`
       memoryDataError "/: openFile: inappropriate type (is a directory)"
 
     it "does not throw exceptions if file is gibberish" $
-      memoryData "/proc/cpuinfo"
+      getData "/proc/cpuinfo"
      `shouldReturn`
       memoryDataError "bad line: processor\t: 0"
+
+  context "queries" $ do
+    describe "available" $ do
+      it "uses MemAvailable if available" $
+        fmap available (parseData memDataNew) `shouldBe` Right (Just 1793956)
+
+      it "downgrades to approximate calculation if MemAvailable is not available" $
+        fmap available (parseData memDataOld) `shouldBe` Right (Just 1782460)
+
+    describe "ratio" $
+      it "divides the results of two queries" $
+        fmap (fmap showRatio . ratio used total) (parseData memDataNew) `shouldBe` Right (Just "0.12")
+
+showRatio :: RealFloat a => a -> String
+showRatio n = showFFloat (Just 2) n ""
+
+memDataOld, memDataNew :: Text
+memDataOld = Text.unlines
+  [ "MemTotal:        2040896 kB"
+  , "MemFree:         1253068 kB"
+  , "Buffers:           82356 kB"
+  , "Cached:           447036 kB"
+  ]
+memDataNew = Text.unlines
+  [ "MemTotal:        2040896 kB"
+  , "MemFree:         1253068 kB"
+  , "MemAvailable:    1793956 kB"
+  , "Buffers:           82356 kB"
+  , "Cached:           447036 kB"
+  ]
