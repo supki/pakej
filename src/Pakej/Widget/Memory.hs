@@ -10,14 +10,14 @@ module Pakej.Widget.Memory
 #endif
   , Query
   , widget
-    -- ** Get memory metadata
-  , getData
     -- ** Make sense of memory metadata
   , ratio
   , total
   , available
   , used
   , lookup
+    -- ** Memory metadata parser
+  , getData
 #ifdef TEST
   , parseData
   , parseLine
@@ -42,16 +42,49 @@ import           Pakej.Daemon (PakejWidget)
 import           Pakej.Widget (text)
 
 
--- | Abstract data type representing memory metadata
+-- | Abstract data type representing /proc/meminfo contents
 newtype Mem = Mem { unMem :: HashMap Text Int64 } deriving (Show, Eq)
 
 -- | Memory metadata query
 type Query a = Mem -> Maybe a
 
--- | Construct a 'Text' widget from the memory metadata query and the default value
-widget :: FilePath -> Text -> Query Text -> PakejWidget Text
-widget p z q = text $ either (const z) (maybe z id . q) <$> getData p
+-- | Construct a 'Text' widget from the initial value and the memory metadata query
+widget
+  :: Text       -- Initial widget value
+  -> Query Text -- The result of this query is used as the widget value
+  -> PakejWidget Text
+widget z q = text $ either (const z) (maybe z id . q) <$> getData "/proc/meminfo"
 {-# ANN widget ("HLint: ignore Use fromMaybe" :: String) #-}
+
+-- | The ratio between the results of two memory metadata queries
+ratio :: Fractional a => Query a -> Query a -> Query a
+ratio = (liftA2.liftA2) (/)
+
+-- | Total amount of memory installed on the machine
+total :: Num a => Query a
+total = lookup "MemTotal"
+
+-- | Amount of memory available for consumption
+--
+-- Accurate result requires newer kernels. On older kernels it downgrades to
+-- approximate calculations
+available :: Num a => Query a
+available mem = lookup "MemAvailable" mem <|> availableApprox mem
+
+availableApprox :: Num a => Query a
+availableApprox mem = fmap sum (traverse (\k -> lookup k mem) ["MemFree", "Buffers", "Cached"])
+{-# ANN availableApprox ("HLint: ignore Avoid lambda" :: String) #-}
+
+-- | Amount of memory already in use
+--
+-- Accurate result requires newer kernels. On older kernels it downgrades to
+-- approximate calculations
+used :: Num a => Query a
+used = (liftA2.liftA2) (-) total available
+
+-- | Generic memory metadata lookup
+lookup :: Num a => Text -> Query a
+lookup k = fmap fromIntegral . HashMap.lookup k . unMem
 
 -- | Parse @\/proc\/meminfo@ (or any file with the same format) data
 -- to the key-value mapping, e.g. if
@@ -93,33 +126,3 @@ parseLine l = case Text.words l of
 
 memoryDataError :: Text -> Either Text a
 memoryDataError x = Left $ "Pakej.Widget.Memory: " <> x
-
--- | The ratio between the results of two memory metadata queries
-ratio :: Fractional a => Query a -> Query a -> Query a
-ratio = (liftA2.liftA2) (/)
-
--- | Total amount of memory installed on the machine
-total :: Num a => Query a
-total = lookup "MemTotal"
-
--- | Amount of memory available for consumption
---
--- Accurate result requires newer kernels. On older kernels it downgrades to
--- approximate calculations
-available :: Num a => Query a
-available mem = lookup "MemAvailable" mem <|> availableApprox mem
-
-availableApprox :: Num a => Query a
-availableApprox mem = fmap sum (traverse (\k -> lookup k mem) ["MemFree", "Buffers", "Cached"])
-{-# ANN availableApprox ("HLint: ignore Avoid lambda" :: String) #-}
-
--- | Amount of memory already in use
---
--- Accurate result requires newer kernels. On older kernels it downgrades to
--- approximate calculations
-used :: Num a => Query a
-used = (liftA2.liftA2) (-) total available
-
--- | Generic memory metadata lookup
-lookup :: Num a => Text -> Query a
-lookup k = fmap fromIntegral . HashMap.lookup k . unMem
