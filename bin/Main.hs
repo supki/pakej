@@ -35,8 +35,9 @@ recompilePakej args dst = do
   appDir <- appDirectory
   exitWith =<<
     waitForProcess =<<
-      runProcess "cabal" (["exec", "ghc", "--", source, "-o", dst, "-O", "-threaded"] ++ args)
-        (Just appDir) Nothing Nothing Nothing Nothing
+      runProcess "cabal" (cabalOpts source ++ args) (Just appDir) Nothing Nothing Nothing Nothing
+ where
+  cabalOpts s = ["exec", "ghc", "--", "-odir", "obj", "-hidir", "obj", s, "-o", dst, "-O", "-threaded"]
 
 -- | Run pakej executable with the specified arguments
 runPakej :: [String] -> FilePath -> IO a
