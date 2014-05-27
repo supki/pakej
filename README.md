@@ -23,6 +23,11 @@ $ pakej
 The default pakej configuration isn't very interesting though, so you'd really want
 to customize it for yourself. We have a tutorial!
 
+### Sandboxing
+
+`pakej` is sandbox-aware, just drop (or link) the appropriate `cabal.sandbox.config`
+into `~/.pakej` and it will be used
+
 The Tutorial
 ------------
 
