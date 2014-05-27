@@ -6,7 +6,7 @@ import           Control.Exception (IOException)
 import           Control.Monad
 import           Data.Foldable (for_, traverse_)
 import           Data.List (isSuffixOf)
-import           Data.Maybe (catMaybes)
+import           Data.Maybe (catMaybes, fromMaybe)
 import           Data.Traversable (traverse)
 import           Data.Version (showVersion)
 import           System.Directory (copyFile, createDirectoryIfMissing, getAppUserDataDirectory, getDirectoryContents)
@@ -27,6 +27,7 @@ main :: IO ()
 main = getArgs >>= \case
   ["--init"]           -> initPakej
   "--recompile" : args -> program >>= recompilePakej args
+  "--edit"      : args -> editPakej args
   args                 -> program >>= runPakej args
 
 -- | Create Pakej app directory and copy pakej.hs template over
@@ -47,6 +48,22 @@ recompilePakej args dst = do
       runProcess "cabal" (cabalOpts source ++ args) (Just appDir) Nothing Nothing Nothing Nothing
  where
   cabalOpts s = ["exec", "ghc", "--", "-odir", "obj", "-hidir", "obj", s, "-o", dst, "-O", "-threaded"]
+
+editPakej :: [String] -> IO ()
+editPakej args = do
+  source <- sourceFile
+  appDir <- pakejDirectory
+  editor <- lookupEditor
+  mtime  <- getModificationTime source
+  waitForProcess =<<
+    runProcess editor [source] (Just appDir) Nothing Nothing Nothing Nothing
+  mtime' <- getModificationTime source
+  when (mtime' > mtime) $ do
+    info (printf "Changes detected in %s; attempting to recompile .." source)
+    program >>= recompilePakej args
+ where
+  lookupEditor =
+    fmap (fromMaybe "/usr/bin/editor") (liftA2 (<|>) (Posix.getEnv "VISUAL") (Posix.getEnv "EDITOR"))
 
 -- | Run pakej executable with the specified arguments
 runPakej :: [String] -> FilePath -> IO a
@@ -88,6 +105,9 @@ die m = warn m >> exitFailure
 
 warn :: String -> IO ()
 warn = hPutStrLn stderr
+
+info :: String -> IO ()
+info = putStrLn
 
 -- | ~/.pakej/pakej-x86_64-linux
 program :: IO FilePath
