@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import Data.String (IsString(..))
-import Data.Text.Lazy (Text)
+import Data.Text (Text)
 import Data.Time (formatTime, getZonedTime)
 import Pakej
 import Prelude hiding ((.), id)

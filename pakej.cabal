@@ -72,14 +72,22 @@ test-suite spec
       base == 4.*
     , bytestring
     , cereal
+    , cereal-conduit
+    , conduit
+    , conduit-extra
     , directory
     , filepath
+    , hashable
     , hspec
     , hspec-expectations-lens
     , lens
     , network
+    , netwire
     , optparse-applicative
     , text
+    , transformers
+    , unix
+    , unordered-containers
   hs-source-dirs:
     src
     test
