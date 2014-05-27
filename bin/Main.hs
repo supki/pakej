@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# LANGUAGE LambdaCase #-}
 module Main (main) where
 
 import Data.Version (showVersion)
@@ -15,13 +15,10 @@ import Paths_pakej (version, getDataFileName)
 
 
 main :: IO ()
-main = do
-  args <- getArgs
-  name <- program
-  case args of
-    ["--init"]           -> initPakej
-    "--recompile" : args -> recompilePakej name args
-    _                    -> runPakej name args
+main = getArgs >>= \case
+  ["--init"]           -> initPakej
+  "--recompile" : args -> program >>= recompilePakej args
+  args                 -> program >>= runPakej args
 
 -- | Create Pakej app directory and copy pakej.hs template over
 initPakej :: IO ()
@@ -32,8 +29,8 @@ initPakej = do
   copyFile t s
 
 -- | Recompile pakej sources and place the result somewhere
-recompilePakej :: FilePath -> [String] -> IO a
-recompilePakej dst args = do
+recompilePakej :: [String] -> FilePath -> IO a
+recompilePakej args dst = do
   source <- sourceFile
   appDir <- appDirectory
   exitWith =<<
@@ -42,8 +39,8 @@ recompilePakej dst args = do
         (Just appDir) Nothing Nothing Nothing Nothing
 
 -- | Run pakej executable with the specified arguments
-runPakej :: FilePath -> [String] -> IO a
-runPakej path args = executeFile path False args Nothing
+runPakej :: [String] -> FilePath -> IO a
+runPakej args path = executeFile path False args Nothing
 
 -- | ~/.pakej/pakej-x86_64-linux
 program :: IO FilePath
