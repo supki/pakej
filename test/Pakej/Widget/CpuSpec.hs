@@ -47,13 +47,19 @@ spec = do
      `shouldReturn`
       cpuDataError "/: openFile: inappropriate type (is a directory)"
 
-  describe "computeUsage" $
+  describe "computeUsage" $ do
     it "computes cpu usage between 2 snapshots" $ do
       s1 <- parseLine (Just 0) "cpu0 7928261 498437 3288444 106187410 2371849 52378 38421 0 0"
       s2 <- parseLine (Just 0) "cpu0 7928273 498437 3288455 106187766 2371849 52378 38421 0 0"
       return (computeUsage (snapshotDiff s1 s2))
      `shouldBe`
       Just 6.068601583113456
+
+    it "computes zero cpu usage between 2 identical snapshots" $ do
+      s1 <- parseLine (Just 0) "cpu0 7928261 498437 3288444 106187410 2371849 52378 38421 0 0"
+      return (computeUsage (snapshotDiff s1 s1))
+     `shouldBe`
+      Just 0
 
 noSnapshot :: Maybe (Snapshot Rational)
 noSnapshot = Nothing
