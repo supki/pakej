@@ -13,14 +13,14 @@ import System.Posix hiding (Ignore)
 import Text.Read (readMaybe)
 import Text.Printf (printf)
 
-import Pakej.Conf (Conf, Policy(..), policy, foreground)
+import Pakej.Conf (PakejConf, Policy(..), policy, foreground)
 
 {-# ANN module "HLint: ignore Use if" #-}
 
 
 -- | Forks, prepares child process to serve as a daemon, then exits
 -- with @EXIT_SUCCESS@
-daemonize :: Conf -> IO a -> IO a
+daemonize :: PakejConf -> IO a -> IO a
 daemonize conf ioa =
   case view foreground conf of
     False -> do
@@ -31,7 +31,7 @@ daemonize conf ioa =
 
 -- | Change the working directory to @\/@, set the fmask to @027@,
 -- close @stdin@, @stdout@, and @stderr@, create Unix socket file
-prepareChild :: Conf -> IO ()
+prepareChild :: PakejConf -> IO ()
 prepareChild conf = do
   changeWorkingDirectory "/"
   pidfile <- appDirectory "pakej" "pakej.pid"
@@ -59,7 +59,7 @@ close fds = do
 --   * The process with the PID stored in the pidfile does not exist
 --
 --   * Pakej couldn't terminate the process with the stored PID
-killPakej :: FilePath -> Conf -> IO (Either IOError ())
+killPakej :: FilePath -> PakejConf -> IO (Either IOError ())
 killPakej pidfile conf = tryIOError $ do
   Just pid <- readMaybe <$> readFile pidfile
   pingProcess pid

@@ -1,8 +1,9 @@
 {-# LANGUAGE CPP #-}
 -- | Pakej configuration
 module Pakej.Conf
-  ( Conf(..), Mode(..), Policy(..)
-  , conf
+  ( PakejConf(..), Mode(..), Policy(..)
+  , options
+  , defaultPakejConf
   , addrs, mode, policy, host, foreground
   , _Daemon, _Query, _Repl, _Replace, _Respect
 #ifdef TEST
@@ -14,18 +15,15 @@ import           Control.Lens hiding (argument)
 import           Data.Foldable (asum)
 import qualified Data.Text as Text
 import           Data.Version (Version)
-import           Options.Applicative
+import           Options.Applicative hiding ((&))
 import           Network (PortID(..), HostName)
-import           System.Directory (getAppUserDataDirectory)
 import           System.Environment (withProgName)
-import           System.FilePath ((</>))
-import           Text.Printf (printf)
 
 import           Pakej.Protocol (Request(..))
 import           Paths_pakej (version)
 
 
-data Conf = Conf
+data PakejConf = PakejConf
   { _host       :: HostName
   , _addrs      :: [PortID]
   , _policy     :: Policy
@@ -33,23 +31,23 @@ data Conf = Conf
   , _foreground :: Bool
   } deriving (Show, Eq)
 
-host :: Lens' Conf HostName
+host :: Lens' PakejConf HostName
 host f x = f (_host x) <&> \p -> x { _host = p }
 {-# INLINE host #-}
 
-addrs :: Lens' Conf [PortID]
+addrs :: Lens' PakejConf [PortID]
 addrs f x = f (_addrs x) <&> \p -> x { _addrs = p }
 {-# INLINE addrs #-}
 
-policy :: Lens' Conf Policy
+policy :: Lens' PakejConf Policy
 policy f x = f (_policy x) <&> \p -> x { _policy = p }
 {-# INLINE policy #-}
 
-mode :: Lens' Conf Mode
+mode :: Lens' PakejConf Mode
 mode f x = f (_mode x) <&> \p -> x { _mode = p }
 {-# INLINE mode #-}
 
-foreground :: Lens' Conf Bool
+foreground :: Lens' PakejConf Bool
 foreground f x = f (_foreground x) <&> \p -> x { _foreground = p }
 {-# INLINE foreground #-}
 
@@ -84,13 +82,11 @@ _Respect :: Prism' Policy ()
 _Respect = prism' (const Respect) (\x -> case x of Respect -> Just (); _ -> Nothing)
 {-# INLINE _Respect #-}
 
-conf :: IO (Either Version Conf)
-conf = appDirectory progn (printf "%s.sock" progn) >>= withProgName progn . parse parser
- where progn   = "pakej"
-       parse p = customExecParser (prefs showHelpOnError) . p
+options :: PakejConf -> IO (Either Version PakejConf)
+options = withProgName "pakej" . customExecParser (prefs showHelpOnError) . parser
 
-parser :: FilePath -> ParserInfo (Either Version Conf)
-parser sock = info (helper <*> go) fullDesc
+parser :: PakejConf -> ParserInfo (Either Version PakejConf)
+parser conf = info (helper <*> go) fullDesc
  where
   go = asum
     [ fmap Left versionParser
@@ -100,26 +96,21 @@ parser sock = info (helper <*> go) fullDesc
 
   versionParser = flag' version (long "version" <> short 'v' <> help "print version information")
 
-  confParser = Conf
-    <$> strOption (long "hostname" <> value "localhost" <> help "hostname to connect")
-    <*> asum
-      [ some $ asum
+  confParser = withDefaultConf conf
+    <$> optional (strOption (long "hostname" <> help "hostname to connect"))
+    <*> optional (some (asum
         [ port (long "port" <> help "port to connect")
         , unix (long "unix" <> help "UNIX domain socket to connect")
-        ]
-      , pure [UnixSocket sock]
-      ]
-    <*> asum
+        ]))
+    <*> optional (asum
       [ flag' Replace (long "replace" <> help "replace running pakej instance")
       , flag' Respect  (long "respect"  <> help "submit to running pakej (default)")
-      , pure Respect
-      ]
-    <*> asum
+      ])
+    <*> optional (asum
       [ flag' (Query CStatus) (long "stat" <> help "ask pakej instance what it has to show")
       , flag' Repl (long "repl" <> help "start a Repl session with the pakej instance")
       , argument (Just . Query . CQuery . Text.pack) (metavar "QUERY" <> help "query to execute")
-      , pure Daemon
-      ]
+      ])
     <*> switch (long "foreground" <> short 'f' <> help "stay in the foreground, don't daemonize")
 
   ghostParser = empty
@@ -134,8 +125,20 @@ parser sock = info (helper <*> go) fullDesc
   port = fmap (PortNumber . fromInteger) . option
   unix = fmap UnixSocket . strOption
 
--- | @\~\/.pakej\/%s@
-appDirectory :: String -> FilePath -> IO FilePath
-appDirectory app filename = do
-  dir <- getAppUserDataDirectory app
-  return (dir </> filename)
+withDefaultConf
+  :: PakejConf -> Maybe HostName -> Maybe [PortID] -> Maybe Policy -> Maybe Mode -> Bool -> PakejConf
+withDefaultConf c mhm mpid mp mm f = c
+  & maybe id (set host) mhm
+  & maybe id (set addrs) mpid
+  & maybe id (set policy) mp
+  & maybe id (set mode) mm
+  & set foreground f
+
+defaultPakejConf :: PakejConf
+defaultPakejConf = PakejConf
+  { _host       = "localhost"
+  , _addrs      = [UnixSocket "pakej.sock"]
+  , _policy     = Respect
+  , _mode       = Daemon
+  , _foreground = False
+  }

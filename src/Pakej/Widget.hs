@@ -18,8 +18,8 @@ module Pakej.Widget
   , constant
   , widget
     -- * Configure
-  , Config
-  , defaultConfig
+  , WidgetConf
+  , defaultWidgetConf
   , every
   , second
   , minute
@@ -64,7 +64,7 @@ newtype Widget m l v a b = Widget
  } deriving (Category, Functor, Applicative)
 
 -- | A highly monomorphic 'Widget' type used by Pakej itself
-type PakejWidget = Widget IO Text Text (Config Integer)
+type PakejWidget = Widget IO Text Text (WidgetConf Integer)
 
 {-# ANN fromWire "HLint: ignore Eta reduce" #-}
 -- | Get a widget from an abstract 'Wire'
@@ -100,7 +100,7 @@ modify' f = do
 -- | Aggregate all successful 'Widget's' results
 --
 -- Failed 'Widget's' results are skipped so they do not clutter the resulting value
-aggregate :: (Hashable l, Monad m) => [Widget m l v (Config n) Text] -> Widget m l v (Config n) Text
+aggregate :: (Hashable l, Monad m) => [Widget m l v (WidgetConf n) Text] -> Widget m l v (WidgetConf n) Text
 aggregate xs = go . Widget (dispatch (map unWidget xs) &&& id)
  where go = Widget . mkStateM (repeat Nothing) $ \_dt ((vs, conf), s) -> do
          let s' = zipWith (<|>) vs s
@@ -131,13 +131,13 @@ data PakejException =
 instance Exception PakejException
 
 -- | Construct a 'Widget' from the 'IO' action that returns 'Text'
-text :: (Hashable l, MonadIO m, Integral n) => IO Text -> Widget m l v (Config n) Text
+text :: (Hashable l, MonadIO m, Integral n) => IO Text -> Widget m l v (WidgetConf n) Text
 text = constant
 
 -- | Construct a 'Widget' from the external command.
 system
   :: (Hashable l, MonadIO m, Integral n)
-  => IO (ExitCode, LazyText.Text, LazyText.Text) -> Widget m l v (Config n) Text
+  => IO (ExitCode, LazyText.Text, LazyText.Text) -> Widget m l v (WidgetConf n) Text
 system io = constant $ do
   (ec, out, _) <- io
   case ec of
@@ -145,11 +145,11 @@ system io = constant $ do
     _           -> throwIO ec
 
 -- | Construct a 'Widget' from the IO action
-constant :: (Hashable l, MonadIO m, Integral n) => IO b -> Widget m l v (Config n) b
+constant :: (Hashable l, MonadIO m, Integral n) => IO b -> Widget m l v (WidgetConf n) b
 constant io = widget undefined (const io)
 
 -- | Construct a 'Widget' from the /iterating/ IO action
-widget :: (Hashable l, MonadIO m, Integral n) => a -> (a -> IO a) -> Widget m l v (Config n) a
+widget :: (Hashable l, MonadIO m, Integral n) => a -> (a -> IO a) -> Widget m l v (WidgetConf n) a
 widget s io = Widget . mkGen $ \_dt n -> do
   ref <- liftIO $ do
     ref <- newIORef Nothing
@@ -173,21 +173,21 @@ final ref = Widget . mkFixM $ \_dt _ -> liftIO $
   liftM (maybe (Left (SomeException EmptyWidgetException)) Right) (readIORef ref)
 
 -- | 'Widget' configuration
-data Config n = Config
+data WidgetConf n = WidgetConf
   { timeout   :: n    -- ^ Time to wait between 'Widget' updates
   , separator :: Text -- ^ Text to separate aggregated results
   } deriving (Show, Eq)
 
 -- | The default 'Widget' configuration
-defaultConfig :: Num n => Config n
-defaultConfig = Config { timeout = second, separator = Text.pack " | " }
+defaultWidgetConf :: Num n => WidgetConf n
+defaultWidgetConf = WidgetConf { timeout = second, separator = Text.pack " | " }
 
 -- | Wait @n@ seconds between 'Widget' updates
-every :: (Hashable l, Monad m) => n -> Widget m l v (Config n) (Config n)
+every :: (Hashable l, Monad m) => n -> Widget m l v (WidgetConf n) (WidgetConf n)
 every n = Widget $ arr (\conf -> conf { timeout = n })
 
 -- | Separate 'Widget's values by some 'Text'
-inbetween :: (Hashable l, Monad m) => Text -> Widget m l v (Config n) (Config n)
+inbetween :: (Hashable l, Monad m) => Text -> Widget m l v (WidgetConf n) (WidgetConf n)
 inbetween t = Widget $ arr (\conf -> conf { separator = t })
 
 -- | 1 second timeout

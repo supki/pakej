@@ -7,9 +7,10 @@ module Pakej.Client
   ) where
 
 import           Control.Concurrent (myThreadId)
-import           Control.Monad
 import           Control.Exception (bracket, catches)
 import           Control.Exception.Lens
+import           Control.Lens
+import           Control.Monad
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Data.Conduit (Producer, Consumer, (=$), (=$=), ($$), yield)
 import           Data.Conduit.Binary (sourceHandle, sinkHandle)
@@ -30,13 +31,14 @@ import           System.Posix.Signals (installHandler, keyboardSignal, Handler(.
 import           System.Timeout (timeout)
 import           Text.Printf (printf)
 
+import           Pakej.Conf (PakejConf, host, addrs)
 import           Pakej.Protocol
 import           Pakej.Widget (PakejWidget, text)
 
 
-oneshot :: HostName -> PortID -> Request -> IO ()
-oneshot host port q = do
-  res <- timeout (5 * 1000000) . connect host port $ \h -> do
+oneshot :: PakejConf -> Request -> IO ()
+oneshot conf q = do
+  res <- timeout (5 * 1000000) . connect (conf ^. host) (conf ^. singular (addrs.folded)) $ \h -> do
     yield q $$ conduitPut put =$ sinkHandle h
     sourceHandle h $$ sinkGet get
   case res of
@@ -48,21 +50,23 @@ oneshot host port q = do
       exitFailure
 
 query :: HostName -> PortID -> Text -> PakejWidget Text
-query host port q = text $ do
-  res <- timeout (5 * 1000000) . connect host port $ \h -> do
-    yield (CQuery q) $$ conduitPut put =$ sinkHandle h
-    sourceHandle h $$ sinkGet get
+query h p q = text $ do
+  res <- timeout (5 * 1000000) . connect h p $ \c -> do
+    yield (CQuery q) $$ conduitPut put =$ sinkHandle c
+    sourceHandle c $$ sinkGet get
   case res of
     Just (DQuery (Just t)) -> return t
     _ -> exitFailure
 
-repl :: HostName -> PortID -> IO a
-repl host port = do
+repl :: PakejConf -> IO a
+repl conf = do
   signalHandlers
-  connect host port $ \h ->
+  let h = conf ^. host
+      p = conf ^. singular (addrs.folded)
+  connect h p $ \c ->
     forever $ do
-      userInput msg $$ conduitPut put =$ sinkHandle h
-      sourceHandle h $$ conduitGet get =$= CL.isolate 1 =$ userOutput
+      userInput (msg h p) $$ conduitPut put =$ sinkHandle c
+      sourceHandle c $$ conduitGet get =$= CL.isolate 1 =$ userOutput
      `catches`
        [ handler_ (_IOException.errorType._EOF) $ do
            putStrLn "\nLeaving Pakej alone."
@@ -70,7 +74,7 @@ repl host port = do
        , handler_ _UserInterrupt $
            putStr "\n"
        ]
- where msg = printf "pakej %s >>> " (site host port)
+ where msg h p = printf "pakej %s >>> " (site h p)
 
 userInput :: MonadIO m => String -> Producer m Request
 userInput msg = fix $ \loop -> do

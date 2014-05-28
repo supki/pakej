@@ -31,14 +31,14 @@ import           System.IO (hClose)
 import           System.IO.Error (tryIOError)
 import           Text.Printf (printf)
 
-import           Pakej.Conf (Conf, addrs)
+import           Pakej.Conf (PakejConf, addrs)
 import           Pakej.Daemon.Daemonize (daemonize)
 import           Pakej.Protocol
 import           Pakej.Widget
 
 import           Paths_pakej (version)
 
-daemon :: Conf -> PakejWidget a -> IO ()
+daemon :: PakejConf -> PakejWidget a -> IO ()
 daemon conf w = do
   greeting conf
   daemonize conf $ do
@@ -47,7 +47,7 @@ daemon conf w = do
     locks <- mapM (listen ref) (view addrs conf)
     mapM_ acquireLock locks
 
-greeting :: Conf -> IO ()
+greeting :: PakejConf -> IO ()
 greeting conf = do
   printf "pakej %s, listening on:\n" (showVersion version)
   mapM_ (putStrLn . pretty) (view addrs conf)
@@ -103,12 +103,12 @@ preparePort _              = return (Right ())
 
 worker
   :: (Show l, Eq l, Hashable l, Integral n, Applicative m, MonadIO m)
-  => IORef (HashMap l (Access v)) -> Widget m l v (Config n) a -> m b
+  => IORef (HashMap l (Access v)) -> Widget m l v (WidgetConf n) a -> m b
 worker ref w = step (unWidget w) Map.empty clockSession_
  where
   step w' m' session' = do
     (dt, session'') <- stepSession session'
-    ((_, w''), m'') <- runStateT (stepWire w' dt (Right defaultConfig)) m'
+    ((_, w''), m'') <- runStateT (stepWire w' dt (Right defaultWidgetConf)) m'
     liftIO $ do
       atomicWriteIORef ref m''
       threadDelay 200000

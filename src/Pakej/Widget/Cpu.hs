@@ -54,9 +54,6 @@ readSnapshot n =
     d <- getData "/proc/stat"
     return $ either (\_ -> Left undefined) (maybe (Left undefined) Right . parseSnapshot n) d
 
-handleIOError :: (IOError -> IO a) -> IO a -> IO a
-handleIOError = flip catchIOError
-
 usage :: (Monoid s, Ord a, Fractional a) => Wire s e m (Snapshot a) a
 usage =
   mkState emptySnapshot $ \_dt (v, s) -> (Right (computeUsage (snapshotDiff v s)), v)
@@ -85,6 +82,9 @@ parseLine n str = MkS <$> do
 
 getData :: FilePath -> IO (Either Text Text)
 getData = handleIOError (return . cpuDataError . Text.pack . show) . fmap Right . Text.readFile
+
+handleIOError :: (IOError -> IO a) -> IO a -> IO a
+handleIOError = flip catchIOError
 
 cpuDataError :: Text -> Either Text a
 cpuDataError x = Left $ "Pakej.Widget.Cpu: " <> x
