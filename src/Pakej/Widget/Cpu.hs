@@ -30,8 +30,7 @@ import qualified Data.Text.Read as Text
 import           Prelude hiding ((.), id)
 import           System.IO.Error (catchIOError)
 
-import           Pakej.Daemon (PakejWidget)
-import           Pakej.Widget (Widget(..), mkFixM, mkState)
+import           Pakej.Widget (PakejWidget, Widget(..), mkFixM, mkState)
 
 -- | Cpu usage snapshot
 newtype Snapshot a = MkS [a] deriving (Show, Eq)

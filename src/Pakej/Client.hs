@@ -30,9 +30,8 @@ import           System.Posix.Signals (installHandler, keyboardSignal, Handler(.
 import           System.Timeout (timeout)
 import           Text.Printf (printf)
 
-import           Pakej.Daemon (PakejWidget)
 import           Pakej.Protocol
-import           Pakej.Widget (text)
+import           Pakej.Widget (PakejWidget, text)
 
 
 oneshot :: HostName -> PortID -> Request -> IO ()

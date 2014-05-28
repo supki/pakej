@@ -1,8 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
 module Pakej.Daemon
-  ( PakejWidget
-  , daemon
+  ( daemon
   ) where
 
 import           Control.Concurrent (forkIO, forkFinally, threadDelay)
@@ -38,9 +37,6 @@ import           Pakej.Protocol
 import           Pakej.Widget
 
 import           Paths_pakej (version)
-
--- | A highly monomorphic 'Widget' type used by Pakej itself
-type PakejWidget = Widget IO Text Text (Config Integer)
 
 daemon :: Conf -> PakejWidget a -> IO ()
 daemon conf w = do

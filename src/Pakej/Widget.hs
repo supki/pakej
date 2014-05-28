@@ -4,6 +4,7 @@
 -- | Pakej 'Widget's
 module Pakej.Widget
   ( Widget(..)
+  , PakejWidget
   , fromWire
     -- * Store the result
   , Access(..)
@@ -56,12 +57,14 @@ import           System.Exit (ExitCode(..))
 
 {-# ANN module "HLint: ignore Use second" #-}
 
-
 -- | Widget is an Automaton that operates over 'Monad' @m@ collecting
 -- results in the mapping @l -> v@
 newtype Widget m l v a b = Widget
  { unWidget :: Wire (Timed NominalDiffTime ()) SomeException (StateT (HashMap l (Access v)) m) a b
  } deriving (Category, Functor, Applicative)
+
+-- | A highly monomorphic 'Widget' type used by Pakej itself
+type PakejWidget = Widget IO Text Text (Config Integer)
 
 {-# ANN fromWire "HLint: ignore Eta reduce" #-}
 -- | Get a widget from an abstract 'Wire'

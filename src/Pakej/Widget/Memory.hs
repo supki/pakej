@@ -38,8 +38,7 @@ import           Data.Traversable (traverse)
 import           Prelude hiding (lookup)
 import           System.IO.Error (catchIOError)
 
-import           Pakej.Daemon (PakejWidget)
-import           Pakej.Widget (text)
+import           Pakej.Widget (PakejWidget, text)
 
 
 -- | Abstract data type representing /proc/meminfo contents
