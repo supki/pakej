@@ -19,6 +19,7 @@ script:
     - cabal sdist
     - ghc -O example/datetime.hs
     - ghc -O example/aggregation.hs
+    - ghc -O example/widget.hs
     - ghc -O .dotfiles/core/pakej.hs
     - pakej --init
     - pakej --recompile
