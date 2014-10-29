@@ -15,7 +15,7 @@ import           Control.Lens hiding (argument)
 import           Data.Foldable (asum)
 import qualified Data.Text as Text
 import           Data.Version (Version)
-import           Options.Applicative hiding ((&))
+import           Options.Applicative
 import           Network (PortID(..), HostName)
 import           System.Environment (withProgName)
 
@@ -109,20 +109,20 @@ parser conf = info (helper <*> go) fullDesc
     <*> optional (asum
       [ flag' (Query CStatus) (long "stat" <> help "ask pakej instance what it has to show")
       , flag' Repl (long "repl" <> help "start a Repl session with the pakej instance")
-      , argument (Just . Query . CQuery . Text.pack) (metavar "QUERY" <> help "query to execute")
+      , argument (fmap (Query . CQuery . Text.pack) str) (metavar "QUERY" <> help "query to execute")
       ])
     <*> switch (long "foreground" <> short 'f' <> help "stay in the foreground, don't daemonize")
 
   ghostParser = empty
      <* asum
       [ switch (long "recompile" <> help "recompile pakej executable")
-        <* many (argument Just (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
+        <* many (argument str (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
       , switch (long "init" <> help "initialize pakej")
       , switch (long "edit" <> help "edit pakej.hs, recompile on changes")
-        <* many (argument Just (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
+        <* many (argument str (metavar "GHC OPTION" <> help "option to pass to GHC when recompiling"))
       ]
 
-  port = fmap (PortNumber . fromInteger) . option
+  port = fmap (PortNumber . fromInteger) . option auto
   unix = fmap UnixSocket . strOption
 
 withDefaultConf
