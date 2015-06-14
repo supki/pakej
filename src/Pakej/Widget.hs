@@ -38,6 +38,7 @@ module Pakej.Widget
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (Exception(..), SomeException(..), throwIO, handle)
 import           Control.Monad (liftM)
+import           Control.Monad.Trans.Class (lift)
 import           Control.Monad.Trans.State.Strict (StateT, get, put)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Wire hiding (second, loop)
@@ -68,8 +69,8 @@ type PakejWidget = Widget IO Text Text (WidgetConf Integer)
 
 {-# ANN fromWire "HLint: ignore Eta reduce" #-}
 -- | Get a widget from an abstract 'Wire'
-fromWire :: Monad n => (forall e m. Monad m => Wire (Timed NominalDiffTime ()) e m a b) -> Widget n l v a b
-fromWire w = Widget w
+fromWire :: Monad m => (forall e. Wire (Timed NominalDiffTime ()) e m a b) -> Widget m l v a b
+fromWire w = Widget (mapWire lift w)
 
 -- | Public results are available everywhere, but the private ones are only available
 -- for local queries (meaning queries to the local UNIX socket Pakej's listening)
