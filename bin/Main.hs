@@ -47,7 +47,7 @@ recompilePakej args dst = do
     waitForProcess =<<
       runProcess "cabal" (cabalOpts source ++ args) (Just appDir) Nothing Nothing Nothing Nothing
  where
-  cabalOpts s = ["exec", "ghc", "--", "-odir", "obj", "-hidir", "obj", s, "-o", dst, "-O", "-threaded"]
+  cabalOpts s = ["--no-require-sandbox", "exec", "ghc", "--", "-odir", "obj", "-hidir", "obj", s, "-o", dst, "-O", "-threaded"]
 
 editPakej :: [String] -> IO ()
 editPakej args = do
